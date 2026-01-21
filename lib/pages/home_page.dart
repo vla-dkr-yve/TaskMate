@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/bar%20graph/bar_graph.dart';
 import 'package:flutter_application_1/pages/calendar_page.dart';
+import 'package:flutter_application_1/services/database_service.dart';
 
 class HomePage extends StatefulWidget{
   const HomePage({super.key});
@@ -10,6 +11,8 @@ class HomePage extends StatefulWidget{
 }
 
 class _HomePageState extends State<HomePage>{
+
+  final DatabaseService _databaseService = DatabaseService.instance;
 
   late final List<Widget> pages;
 
@@ -37,16 +40,16 @@ class _HomePageState extends State<HomePage>{
   @override
   Widget build(BuildContext context){
     return Scaffold(
-      appBar: TopBar(),
+      appBar: topBar(),
       backgroundColor: Colors.grey[300],
 
       body: pages[currentPage],
 
-      bottomNavigationBar: BottomNavBar(),
+      bottomNavigationBar: bottomNavBar(),
     );
   }
 
-  AppBar TopBar() {
+  AppBar topBar() {
     return AppBar(
       title: Text(
         'TaskMate',
@@ -61,7 +64,7 @@ class _HomePageState extends State<HomePage>{
     );
   }
 
-  BottomNavigationBar BottomNavBar() {
+  BottomNavigationBar bottomNavBar() {
     return BottomNavigationBar(
       currentIndex: currentPage,
       onTap: (value) {
@@ -110,6 +113,7 @@ class HomePageContent extends StatelessWidget {
           ),
           ),
       ),
+
     );
   }
 }
