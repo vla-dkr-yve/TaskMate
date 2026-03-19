@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/dayOfWeek.dart';
+import 'package:flutter_application_1/models/task.dart';
 import 'package:flutter_application_1/services/database_service.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -13,6 +14,9 @@ class CalendarPage extends StatefulWidget {
 class _CalendarPageState extends State<CalendarPage> {
 
   final DatabaseService _databaseService = DatabaseService.instance;
+
+  //List<Task> _chosenDayTasks = new List.empty();
+  List<Task> _chosenDayTasks = [];
 
   String? _title = null;
   String? _description = null;
@@ -49,9 +53,18 @@ class _CalendarPageState extends State<CalendarPage> {
 
 
   DateTime today = DateTime.now();
+
+  Future<void> _GetInitTasks() async {
+    final tasks = await _databaseService.GetTasksForSelectedDay();
+    setState(() {
+      _chosenDayTasks = tasks ?? [];
+    }); 
+  }
+
   void _onDaySelected(DateTime day, DateTime focusedDay){
     setState(() {
       today = day;
+      _GetInitTasks();
     });
   }
   
@@ -171,147 +184,31 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
 
-
+    //main page
     return Scaffold(
       backgroundColor: Colors.transparent,
+      //Button in bottom-right corner
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.white,
         onPressed: () {
-          showDialog(
-            context: context, 
-            builder: (_) => AlertDialog(
-              backgroundColor: Colors.white,
-              title: const Text('Add Task'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _title = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Title of Task',
-                      ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _description = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Description of Task',
-                      ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    controller: _startTimeController,
-                    readOnly: true,
-                    onTap: () {
-                      _pickTime(
-                        controller: _startTimeController,
-                        onTimePicked: (time) => _startTime = time,
-                      );
-                    },
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Start Time',
-                      suffixIcon: Icon(Icons.access_time),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    controller: _endTimeController,
-                    readOnly: true,
-                    onTap: () {
-                      _pickTime(
-                        controller: _endTimeController,
-                        onTimePicked: (time) => _endTime = time,
-                      );
-                    },
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'End Time',
-                      suffixIcon: Icon(Icons.access_time),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    controller: _dateController,
-                    readOnly: true,
-                    onTap: () {
-                      _selectDate();
-                    },
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Date',
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  TextField(
-                    controller: _daysOfWeekController,
-                    readOnly: true,
-                    onTap: _openDaysPicker,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Select days of week',
-                      suffixIcon: Icon(Icons.calendar_view_week),
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  Material(
-                        shape: Border.all(),
-                        color: Colors.white,
-                        child: MaterialButton(
-                          onPressed: () {
-                            if (!_isEndTimeValid()) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content:Text('End time must be after start time'),)
-                              );
-                            }
-                            final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
-                            //_databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, _dayOfWeekId);
-                          },
-                          child: const Text(
-                            "Done",
-                            style: TextStyle(
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                      )
-                  ],
-              ),
-            )
-            );
+          CreateTaskOnClick(context);
         },
         child: const Icon(
           Icons.add,
         ),
       ),
     
-      body: Column(
+      //Center of the page (calendar, displayed tasks)
+      body: ListView(
         children: [
-          _dayOfWeeksList(),
-          Text("123"),
+          Column(
+            children: [
+              _dayOfWeeksList(),
+              Text("It’s okay to move at your own pace")
+              ]
+          ),
+
+          //Calendar
           Container(
             child: TableCalendar(
               headerStyle: HeaderStyle(
@@ -325,9 +222,166 @@ class _CalendarPageState extends State<CalendarPage> {
               onDaySelected: _onDaySelected,
               )
           ),
+          Column(
+            children: [
+              SizedBox(height: 25),
+              Text(
+                "Tasks", 
+                style: TextStyle(
+                  fontSize: 20,
+                  ),
+                ),
+              ListView.separated(
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: _chosenDayTasks.length,
+                shrinkWrap: true,
+                separatorBuilder: (context,index) => SizedBox(height: 25), 
+                itemBuilder: (context, index) {
+                  return Container(
+                    color: Colors.blue,
+                    height: 115
+                    );
+                  },
+                ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+
+  //Function for displaying dialog to create task
+  Future<dynamic> CreateTaskOnClick(BuildContext context) {
+    return showDialog(
+          context: context, 
+          builder: (_) => AlertDialog(
+            backgroundColor: Colors.white,
+            title: const Text('Add Task'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      _title = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Title of Task',
+                    ),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      _description = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Description of Task',
+                    ),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: _startTimeController,
+                  readOnly: true,
+                  onTap: () {
+                    _pickTime(
+                      controller: _startTimeController,
+                      onTimePicked: (time) => _startTime = time,
+                    );
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Start Time',
+                    suffixIcon: Icon(Icons.access_time),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: _endTimeController,
+                  readOnly: true,
+                  onTap: () {
+                    _pickTime(
+                      controller: _endTimeController,
+                      onTimePicked: (time) => _endTime = time,
+                    );
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'End Time',
+                    suffixIcon: Icon(Icons.access_time),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: _dateController,
+                  readOnly: true,
+                  onTap: () {
+                    _selectDate();
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Date',
+                    suffixIcon: Icon(Icons.calendar_today),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: _daysOfWeekController,
+                  readOnly: true,
+                  onTap: _openDaysPicker,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Select days of week',
+                    suffixIcon: Icon(Icons.calendar_view_week),
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                Material(
+                      shape: Border.all(),
+                      color: Colors.white,
+                      child: MaterialButton(
+                        onPressed: () {
+                          //ADD HERE THE CODE FOR PROCESSING "createTask"
+                          if (!_isEndTimeValid()) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content:Text('End time must be after start time'),)
+                            );
+                          }
+                          final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
+                          //New twick
+                          _databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, _dayOfWeekId);
+
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text(
+                          "Done",
+                          style: TextStyle(
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    )
+                ],
+            ),
+          )
+          );
   }
 
   Widget _dayOfWeeksList() {
