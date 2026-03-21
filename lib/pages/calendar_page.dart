@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_application_1/models/dayOfWeek.dart';
 import 'package:flutter_application_1/models/task.dart';
 import 'package:flutter_application_1/services/database_service.dart';
@@ -24,8 +25,8 @@ class _CalendarPageState extends State<CalendarPage> {
   TimeOfDay? _startTime = null;
   TimeOfDay? _endTime = null;
 
-  List<DateTime>? _taskDate = null;
-  List<int>? _dayOfWeekId = null;
+  List<DateTime>? _taskDate = [];
+  List<int>? _dayOfWeekId = [];
 
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
@@ -54,8 +55,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
   DateTime today = DateTime.now();
 
-  Future<void> _GetInitTasks() async {
-    final tasks = await _databaseService.GetTasksForSelectedDay();
+  Future<void> _GetInitTasks(DateTime chosenDay) async {
+    final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay);
     setState(() {
       _chosenDayTasks = tasks ?? [];
     }); 
@@ -64,7 +65,7 @@ class _CalendarPageState extends State<CalendarPage> {
   void _onDaySelected(DateTime day, DateTime focusedDay){
     setState(() {
       today = day;
-      _GetInitTasks();
+      _GetInitTasks(today);
     });
   }
   
@@ -121,6 +122,7 @@ class _CalendarPageState extends State<CalendarPage> {
         setState(() {
           _selectedDate = _picked;
           _dateController.text = _picked.toString().split(" ")[0];
+          _taskDate?.add(_picked);
         });
       }
   }
@@ -234,12 +236,57 @@ class _CalendarPageState extends State<CalendarPage> {
               ListView.separated(
                 physics: NeverScrollableScrollPhysics(),
                 itemCount: _chosenDayTasks.length,
+                padding: EdgeInsets.all(15),
                 shrinkWrap: true,
                 separatorBuilder: (context,index) => SizedBox(height: 25), 
                 itemBuilder: (context, index) {
                   return Container(
-                    color: Colors.blue,
-                    height: 115
+                    padding: EdgeInsets.all(10),
+                    height: 115,
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Column(
+                        //mainAxisAlignment: MainAxisAlignment.center,
+                        //crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            //textAlign: TextAlign.end,
+                            _chosenDayTasks[index].title,
+                            style: TextStyle(
+                              fontSize: 18
+                            ),
+                          ),
+                          Text(
+                            //textAlign: TextAlign.left,
+                            _chosenDayTasks[index].description,
+                            style: TextStyle(
+                              fontSize: 14
+                            ),
+                          ),
+                          
+                          Row(
+                            children: [
+                              Text(
+                            //textAlign: TextAlign.end,
+                            _chosenDayTasks[index].startTime != null ? _chosenDayTasks[index].startTime! : "",
+                            style: TextStyle(
+                              fontSize: 18
+                            ),
+                          ),
+                          Text(
+                            //textAlign: TextAlign.left,
+                            _chosenDayTasks[index].endTime != null ? _chosenDayTasks[index].endTime! : "",
+                            style: TextStyle(
+                              fontSize: 18
+                            ),
+                          ),
+                            ],
+                          )
+                        ],
+                        
+                      ),
                     );
                   },
                 ),
@@ -366,7 +413,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           }
                           final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
                           //New twick
-                          _databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, _dayOfWeekId);
+                          _databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, []);
 
                           Navigator.of(context).pop();
                         },

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_application_1/models/dayOfWeek.dart';
 import 'package:flutter_application_1/models/task.dart';
 import 'package:path/path.dart';
@@ -153,7 +154,8 @@ class DatabaseService {
 
     if (TaskDate != null) {
       while (TaskDate.isNotEmpty == true) {
-        insertTaskOccurenceWithDate(db, taskId, startTimeRes, endTimeRes, TaskDate.last);
+        String singleTaskDate = DateFormat('yyyy-MM-dd').format(TaskDate.last);
+        insertTaskOccurenceWithDate(db, taskId, startTimeRes, endTimeRes, singleTaskDate);
         TaskDate.removeLast();
       }
     }
@@ -169,7 +171,7 @@ class DatabaseService {
   //Part of addTaskOccurence func. 
   //Adds data by date
   void insertTaskOccurenceWithDate(Database db, int taskId, String startTimeRes, 
-    String endTimeRes, DateTime singleTaskDate) async{
+    String endTimeRes, String singleTaskDate) async{
       await db.insert(
       _tasksOccuranceTableName, 
         {
@@ -205,11 +207,27 @@ class DatabaseService {
     return dayOfWeek;
   }
 
-  Future<List<Task>> GetTasksForSelectedDay() async{
+  Future<List<Task>> GetTasksForSelectedDay(DateTime chosenDay) async{
     final db = await database;
-    final data = await db.query(_tasksTableName);
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
+
+     final data = await db.rawQuery('''
+   SELECT *
+   FROM $_tasksOccuranceTableName o
+   LEFT JOIN $_tasksTableName t
+     ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+   WHERE o.$_tasksOccuranceTaskDateColumnName = ?
+ ''', [formattedDate]);
+
+    print(chosenDay);
+    print("\n");
+    print([DateFormat('yyyy-MM-dd').format(chosenDay)]);
+    print(data);
+
     //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
-    List<Task> tasksForDay = data.map((e) => Task(id: e["id"] as int, title: e["title"] as String, description: e["description"] as String, deletedAt: e["deletedAt"] as String?)).toList();
-    return tasksForDay;
+    //List<Task> tasksForDay = data.map((e) => Task(id: e["id"] as int, title: e["title"] as String, description: e["description"] as String, deletedAt: e["deletedAt"] as String?, startTime: e["startTime"] as String?, endTime: e["endTime"] as String?)).toList();
+    //List<int> ids = data.map(data.)
+    return [];
   }
 }
