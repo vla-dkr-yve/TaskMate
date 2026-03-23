@@ -28,10 +28,11 @@ class DatabaseService {
   final String _tasksOccuranceEndTimeColumnName = "endTime";
   final String _tasksOccuranceTaskDateColumnName = "taskDate";
   final String _tasksOccuranceDayOfWeekIdColumnName = "dayOfWeekId";
+  //final String _tasksOccuranceTaskIsDone = "isDone";
 
   final String _tasksExecutionTableName = "tasksExecution";
   final String _tasksExecutionIdColumnName = "id";
-  final String _tasksExecutionTaskIdColumnName = "taskId";
+  final String _tasksExecutionTaskOccuranceIdColumnName = "taskOccuranceId";
   final String _tasksExecutionDateColumnName = "executionDate";
 
   DatabaseService._constructor();
@@ -102,10 +103,10 @@ class DatabaseService {
          db.execute('''
           CREATE TABLE $_tasksExecutionTableName (
             $_tasksExecutionIdColumnName INTEGER PRIMARY KEY,
-            $_tasksExecutionTaskIdColumnName INTEGER,
+            $_tasksExecutionTaskOccuranceIdColumnName INTEGER,
             $_tasksExecutionDateColumnName TEXT NOT NULL,
-            FOREIGN KEY ($_tasksExecutionTaskIdColumnName)
-              REFERENCES $_tasksTableName($_tasksIdColumnName)
+            FOREIGN KEY ($_tasksExecutionTaskOccuranceIdColumnName)
+              REFERENCES $_tasksOccuranceTableName($_tasksOccuranceIdColumnName)
           )
         ''');
             },
@@ -212,11 +213,26 @@ class DatabaseService {
 
     final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
 
-     final data = await db.rawQuery('''
-   SELECT *
+//      final data = await db.rawQuery('''
+//    SELECT 
+//    t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName, 
+//    o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName
+//    FROM $_tasksOccuranceTableName o
+//    LEFT JOIN $_tasksTableName t
+//      ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+//    WHERE o.$_tasksOccuranceTaskDateColumnName = ?
+//  ''', [formattedDate]);
+
+final data = await db.rawQuery('''
+   SELECT 
+   t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName, 
+   o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName,
+   e.$_tasksExecutionDateColumnName
    FROM $_tasksOccuranceTableName o
    LEFT JOIN $_tasksTableName t
      ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+   LEFT JOIN $_tasksExecutionTableName e
+     ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName
    WHERE o.$_tasksOccuranceTaskDateColumnName = ?
  ''', [formattedDate]);
 
@@ -226,8 +242,8 @@ class DatabaseService {
     print(data);
 
     //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
-    //List<Task> tasksForDay = data.map((e) => Task(id: e["id"] as int, title: e["title"] as String, description: e["description"] as String, deletedAt: e["deletedAt"] as String?, startTime: e["startTime"] as String?, endTime: e["endTime"] as String?)).toList();
+    List<Task> tasksForDay = data.map((e) => Task(title: e["title"] as String, description: e["description"] as String, deletedAt: e["deletedAt"] as String?, startTime: e["startTime"] as String?, endTime: e["endTime"] as String?, isDone: e["executionDate"] == null ? false : true)).toList();
     //List<int> ids = data.map(data.)
-    return [];
+    return tasksForDay;
   }
 }

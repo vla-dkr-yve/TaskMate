@@ -1,15 +1,15 @@
 class Task {
-  final int id;
   final String title, description;
   final String? deletedAt;
   final String? startTime, endTime;
+  bool isDone;
 
   Task({
-    required this.id,
     required this.title,
     required this.description,
-    required this.deletedAt,
+    this.deletedAt,
     this.startTime,
     this.endTime,
+    required this.isDone
   });
 }
