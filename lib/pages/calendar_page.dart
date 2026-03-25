@@ -32,7 +32,8 @@ class _CalendarPageState extends State<CalendarPage> {
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
 
-  DateTime? _selectedDate;
+  DateTime _selectedDate = DateTime.now();
+
   final TextEditingController _dateController = TextEditingController();
 
   List<DayOfWeek> _allDaysOfWeek = [];
@@ -44,28 +45,27 @@ class _CalendarPageState extends State<CalendarPage> {
   void initState() {
     super.initState();
     _loadDays();
+    _GetInitTasks(_selectedDate);
   }
 
   Future<void> _loadDays() async {
     final days = await _databaseService.getDayOfWeeks();
     setState(() {
-      _allDaysOfWeek = days ?? [];
+      _allDaysOfWeek = days;
     });
   }
-
-  DateTime today = DateTime.now();
 
   Future<void> _GetInitTasks(DateTime chosenDay) async {
     final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay);
     setState(() {
-      _chosenDayTasks = tasks ?? [];
+      _chosenDayTasks = tasks;
     }); 
   }
 
   void _onDaySelected(DateTime day, DateTime focusedDay){
     setState(() {
-      today = day;
-      _GetInitTasks(today);
+      _selectedDate = day;
+      _GetInitTasks(_selectedDate);
     });
   }
   
@@ -217,8 +217,8 @@ class _CalendarPageState extends State<CalendarPage> {
                 formatButtonVisible: false, titleCentered: true
               ),
               availableGestures: AvailableGestures.all,
-              selectedDayPredicate: (day)=>isSameDay(day, today),
-              focusedDay: today, 
+              selectedDayPredicate: (day)=>isSameDay(day, _selectedDate),
+              focusedDay: _selectedDate, 
               firstDay: DateTime.utc(2020,01,01), 
               lastDay: DateTime.utc(2035,01,01),
               onDaySelected: _onDaySelected,
@@ -240,70 +240,77 @@ class _CalendarPageState extends State<CalendarPage> {
                 shrinkWrap: true,
                 separatorBuilder: (context,index) => SizedBox(height: 25), 
                 itemBuilder: (context, index) {
-                  return Container(
-                    padding: EdgeInsets.all(10),
-                    height: 145,
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 198, 201, 203),
-                      
-                      borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: TextButton(
-                        child: Column(
-                          //mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: AutoSizeText(
-                                maxLines: 2,
-                                minFontSize: 18,
-                                textAlign: TextAlign.center,
-                                _chosenDayTasks[index].title,
-                                style: TextStyle(
-                                  fontSize: 24
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: AutoSizeText(
-                        
-                                maxLines: 2,
-                                minFontSize: 16,
-                                _chosenDayTasks[index].description,
-                                style: TextStyle(
-                                  fontSize: 20
-                                ),
-                              ),
-                            ),
-                            
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Text(
-                              textAlign: TextAlign.start,
-                              _chosenDayTasks[index].startTime != null ? _chosenDayTasks[index].startTime! : "",
-                              style: TextStyle(
-                                fontSize: 18
-                              ),
-                              
-                            ),
-                                Text(
-                                  textAlign: TextAlign.end,
-                                  _chosenDayTasks[index].endTime != null ? _chosenDayTasks[index].endTime! : "",
+                  return Opacity(
+                    opacity: 1,
+                    child: Container(
+                      padding: EdgeInsets.all(10),
+                      height: 145,
+                      decoration: BoxDecoration(
+                        //color: const Color.fromARGB(255, 198, 201, 203),
+                        //color: _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
+                        color: _chosenDayTasks[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
+                        borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: TextButton(
+                          child: Column(
+                            //mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: AutoSizeText(
+                                  maxLines: 2,
+                                  minFontSize: 18,
+                                  textAlign: TextAlign.center,
+                                  _chosenDayTasks[index].title,
                                   style: TextStyle(
-                                    fontSize: 18
+                                    fontSize: 24
                                   ),
                                 ),
-                              ],
-                            )
-                          ],
+                              ),
+                              Expanded(
+                                child: AutoSizeText(
                           
-                        ),
-                        onPressed: () => {
-                          _displaySelectedTask(index),
+                                  maxLines: 2,
+                                  minFontSize: 16,
+                                  _chosenDayTasks[index].description,
+                                  style: TextStyle(
+                                    fontSize: 20
+                                  ),
+                                ),
+                              ),
+                              
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Text(
+                                textAlign: TextAlign.start,
+                                _chosenDayTasks[index].startTime != null ? _chosenDayTasks[index].startTime! : "",
+                                style: TextStyle(
+                                  fontSize: 18
+                                ),
+                                
+                              ),
+                                  Text(
+                                    textAlign: TextAlign.end,
+                                    _chosenDayTasks[index].endTime != null ? _chosenDayTasks[index].endTime! : "",
+                                    style: TextStyle(
+                                      fontSize: 18
+                                    ),
+                                  ),
+                                ],
+                              )
+                            ],
+                            
+                          ),
+                          onPressed: () => {
+                            _displaySelectedTask(index),
+                            },
+                          onLongPress: () => {
+                            _displayTaskOccuranceDeleteDialoge(index, _selectedDate!),
                           },
+                        ),
                       ),
-                    );
+                  );
                   },
                 ),
             ],
@@ -420,7 +427,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       shape: Border.all(),
                       color: Colors.white,
                       child: MaterialButton(
-                        onPressed: () {
+                        onPressed: () async {
                           //ADD HERE THE CODE FOR PROCESSING "createTask"
                           if (!_isEndTimeValid() || _taskDate == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -428,8 +435,9 @@ class _CalendarPageState extends State<CalendarPage> {
                             );
                           }
                           else{
-                            _databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, []);
-                            Navigator.of(context).pop();
+                              await _databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, []);
+                              _GetInitTasks(_selectedDate);
+                              Navigator.of(context).pop();
                           }
                           //final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
                           //New twick
@@ -520,7 +528,9 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       }
       ).then((value) {
-        //add code for saving state after closure of dialog
+        setState(() {
+          _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
+        });
       });
   }
 
@@ -529,6 +539,70 @@ class _CalendarPageState extends State<CalendarPage> {
         return Container();
     });
   }
+  
+  Future <dynamic>_displayTaskOccuranceDeleteDialoge(int index, DateTime chosenDay) async{
+
+    return showDialog(
+      context: context, 
+      builder: (BuildContext builder) {return StatefulBuilder(builder: (context, StateSetter setState) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+            title: Text(
+              "Do you want to delete this task? \n It will delete all occurance of it!", 
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 36
+              ), 
+              ),
+            content: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: Navigator.of(context).pop,
+                      child:
+                      Text(
+                      "Cancel",
+                      style: TextStyle(
+                        fontSize: 24
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                    child:
+                      Text(
+                      "Delete",
+                      style: TextStyle(
+                        fontSize: 24
+                        ),
+                      ),
+                      onPressed: () {
+                          deleteTaskOccurance(_chosenDayTasks[index].occuranceId);
+                          _GetInitTasks(chosenDay);
+                          Navigator.of(context).pop();
+                        },
+                ),
+                ]
+                  
+                )
+                
+            );
+      }
+        );
+      }
+      ).then((value) {
+        setState(() {
+          _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
+        });
+      });
+  }
+  
+    Future<VoidCallback?> deleteTaskOccurance(int occuranceId) async{
+
+      await _databaseService.DeleteTaskOccurance(occuranceId, _selectedDate);
+
+    }
+
 }
 
 

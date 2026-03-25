@@ -1,10 +1,12 @@
 class Task {
+  final int occuranceId;
   final String title, description;
   final String? deletedAt;
   final String? startTime, endTime;
   bool isDone;
 
   Task({
+    required this.occuranceId,
     required this.title,
     required this.description,
     this.deletedAt,
