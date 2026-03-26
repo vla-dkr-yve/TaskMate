@@ -17,6 +17,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   final DatabaseService _databaseService = DatabaseService.instance;
 
+
   //List<Task> _chosenDayTasks = new List.empty();
   List<Task> _chosenDayTasks = [];
 
@@ -26,8 +27,11 @@ class _CalendarPageState extends State<CalendarPage> {
   TimeOfDay? _startTime = null;
   TimeOfDay? _endTime = null;
 
-  List<DateTime>? _taskDate = [];
-  List<int>? _dayOfWeekId = [];
+  List<DateTime> _taskDate = [];
+  //List<int>? _dayOfWeekId = [];
+
+  bool showDateError = false;
+  bool showTitleError = false;
 
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
@@ -56,7 +60,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _GetInitTasks(DateTime chosenDay) async {
-    final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay);
+    final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay, chosenDay.weekday + 1);
     setState(() {
       _chosenDayTasks = tasks;
     }); 
@@ -102,7 +106,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   bool _isEndTimeValid() {
-    if (_startTime == null || _endTime == null) return false;
+    if (_startTime == null || _endTime == null) return true;
 
     final startMinutes = _startTime!.hour * 60 + _startTime!.minute;
     final endMinutes = _endTime!.hour * 60 + _endTime!.minute;
@@ -272,7 +276,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           
                                   maxLines: 2,
                                   minFontSize: 16,
-                                  _chosenDayTasks[index].description,
+                                  _chosenDayTasks[index].description == null ? "" : _chosenDayTasks[index].description!,
                                   style: TextStyle(
                                     fontSize: 20
                                   ),
@@ -323,9 +327,12 @@ class _CalendarPageState extends State<CalendarPage> {
 
   //Function for displaying dialog to create task
   Future<dynamic> CreateTaskOnClick(BuildContext context) {
+    
     return showDialog(
           context: context, 
-          builder: (_) => AlertDialog(
+          builder: (context) {
+  return StatefulBuilder(
+    builder: (context, dialogSetState) { return AlertDialog(
             backgroundColor: Colors.white,
             title: const Text('Add Task'),
             content: Column(
@@ -333,23 +340,30 @@ class _CalendarPageState extends State<CalendarPage> {
               children: [
                 TextField(
                   onChanged: (value) {
-                    setState(() {
-                      _title = value;
-                    });
+                    _title = value;
                   },
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Title of Task',
-                    ),
+                  decoration: new InputDecoration(
+                    hintText: "Title of Task*",
+                    errorText: showTitleError ? "Title is required" : null,
+                    border: new OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: showTitleError  ? Colors.redAccent   : Theme.of(context).dividerColor,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: showTitleError ? Colors.redAccent : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                  ),
                 ),
 
                 const SizedBox(height: 10),
 
                 TextField(
                   onChanged: (value) {
-                    setState(() {
-                      _description = value;
-                    });
+                    _description = value;
                   },
                   decoration: InputDecoration(
                     border: OutlineInputBorder(),
@@ -421,6 +435,16 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                 ),
 
+                const SizedBox(height: 5),
+
+                Text(
+                  "Date or day of week must be selected",
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: showDateError == false ? Colors.black : Colors.redAccent,
+                  ),
+                ),
+
                 const SizedBox(height: 15),
 
                 Material(
@@ -429,17 +453,29 @@ class _CalendarPageState extends State<CalendarPage> {
                       child: MaterialButton(
                         onPressed: () async {
                           //ADD HERE THE CODE FOR PROCESSING "createTask"
-                          if (!_isEndTimeValid() || _taskDate == null) {
+                          if (_title == null || _title!.isEmpty) {
+                            dialogSetState((){
+                              showTitleError = true;
+                            });
+                          }
+                          else if (!_isEndTimeValid()) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content:Text('End time must be after start time'),)
                             );
                           }
+                          else if(_taskDate.isEmpty && _selectedDaysOfWeek.isEmpty){
+                            dialogSetState(() {
+                              showDateError = true;
+                            });
+                          }
                           else{
-                              await _databaseService.createTask(_title!, _description, _startTime!, _endTime!, _taskDate, []);
+
+                              final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
+                              await _databaseService.createTask(_title!, _description, _startTime, _endTime, _taskDate, selectedDaysOfWeekIds);
                               _GetInitTasks(_selectedDate);
+
                               Navigator.of(context).pop();
                           }
-                          //final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
                           //New twick
                         },
                         child: const Text(
@@ -452,8 +488,19 @@ class _CalendarPageState extends State<CalendarPage> {
                     )
                 ],
             ),
-          )
           );
+    },
+          );
+      }).then((value) {
+                showTitleError = false;
+               showDateError = false;
+                _startTime = null;
+                _endTime  = null;
+                _taskDate = [];
+                //_dayOfWeekId = [];
+                _title = null;
+  }
+      );
   }
 
   Future<dynamic> _displaySelectedTask(int index){
@@ -474,7 +521,7 @@ class _CalendarPageState extends State<CalendarPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Description: " + _chosenDayTasks[index].description,
+                  "Description: " + (_chosenDayTasks[index].description == null ? "NA" : _chosenDayTasks[index].description!),
                   style: TextStyle(
                     fontSize: 24
                   ),
@@ -548,10 +595,10 @@ class _CalendarPageState extends State<CalendarPage> {
         return AlertDialog(
           backgroundColor: Colors.white,
             title: Text(
-              "Do you want to delete this task? \n It will delete all occurance of it!", 
+              _chosenDayTasks[index].deletedAt == null ? "Do you want to archive the instance? It will leave in history but will not occure any more" : "Do you want to delete instance it will be completely removed!", 
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 36
+                fontSize: 24
               ), 
               ),
             content: Row(
@@ -571,13 +618,13 @@ class _CalendarPageState extends State<CalendarPage> {
                     TextButton(
                     child:
                       Text(
-                      "Delete",
+                      _chosenDayTasks[index].deletedAt == null ? "Archive" : "Delete",
                       style: TextStyle(
                         fontSize: 24
                         ),
                       ),
                       onPressed: () {
-                          deleteTaskOccurance(_chosenDayTasks[index].occuranceId);
+                          _chosenDayTasks[index].deletedAt == null ? deleteTaskOccurance(_chosenDayTasks[index].occuranceId) : deleteTaskCompletely(_chosenDayTasks[index].occuranceId);
                           _GetInitTasks(chosenDay);
                           Navigator.of(context).pop();
                         },
@@ -600,8 +647,11 @@ class _CalendarPageState extends State<CalendarPage> {
     Future<VoidCallback?> deleteTaskOccurance(int occuranceId) async{
 
       await _databaseService.DeleteTaskOccurance(occuranceId, _selectedDate);
-
     }
+    
+    Future<VoidCallback?> deleteTaskCompletely(int occuranceId) async{
+        await _databaseService.deleteTaskCompletely(occuranceId);
+      }
 
 }
 

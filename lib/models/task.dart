@@ -1,6 +1,7 @@
 class Task {
   final int occuranceId;
-  final String title, description;
+  final String title;
+  final String? description;
   final String? deletedAt;
   final String? startTime, endTime;
   bool isDone;
@@ -8,7 +9,7 @@ class Task {
   Task({
     required this.occuranceId,
     required this.title,
-    required this.description,
+    this.description,
     this.deletedAt,
     this.startTime,
     this.endTime,

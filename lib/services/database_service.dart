@@ -16,6 +16,7 @@ class DatabaseService {
   final String _tasksIdColumnName = "id";
   final String _tasksTitleColumnName = "title";
   final String _tasksDescriptionColumnName = "description";
+  final String _tasksCreatedAtDateColumnName = "createdAtDate";
 
   final String _daysOfWeekTableName = "daysOfWeek";
   final String _daysOfWeekIdColumnName = "id";
@@ -58,7 +59,8 @@ class DatabaseService {
           CREATE TABLE $_tasksTableName (
             $_tasksIdColumnName INTEGER PRIMARY KEY,
             $_tasksTitleColumnName TEXT(50) NOT NULL,
-            $_tasksDescriptionColumnName TEXT(300)
+            $_tasksDescriptionColumnName TEXT(300),
+            $_tasksCreatedAtDateColumnName String NOT NULL 
           )
         ''');
 
@@ -118,7 +120,7 @@ class DatabaseService {
   //Handles creating the whole task
   Future<void> createTask(
     String title,String? description, 
-    TimeOfDay startTime, TimeOfDay endTime, List<DateTime>? TaskDate, List<int>? DayOfWeekIds) async{
+    TimeOfDay? startTime, TimeOfDay? endTime, List<DateTime>? TaskDate, List<int>? DayOfWeekIds) async{
     final db = await database;
     int taskId = await addTask(db, title, description);
     await addTaskOccurence(db,taskId, startTime, endTime, TaskDate, DayOfWeekIds);
@@ -127,11 +129,13 @@ class DatabaseService {
   //Part of createTask func
   //Creates tasks as instance in "tasks" table
   Future<int> addTask(Database db,String title,String? description) async {
+    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     int taskId = await db.insert(
       _tasksTableName, 
         {
           _tasksTitleColumnName: title,
           _tasksDescriptionColumnName: description,
+          _tasksCreatedAtDateColumnName: today
         }
       );
 
@@ -141,18 +145,25 @@ class DatabaseService {
   //Part of createTask func
   //Adds task occurance to "tasksOccurance" table, maping the data and separating them into multiple instances (day/date) 
   Future<void> addTaskOccurence(
-    Database db, int taskId, TimeOfDay startTime, 
-    TimeOfDay endTime, List<DateTime>? TaskDate, List<int>? DayOfWeekIds
+    Database db, int taskId, TimeOfDay? startTime, 
+    TimeOfDay? endTime, List<DateTime>? TaskDate, List<int>? DayOfWeekIds
     ) async
     {
+    
+    String? startTimeRes = null;
+    String? endTimeRes = null;
 
-    String startTimeRes =
-    '${startTime.hour.toString().padLeft(2, '0')}:'
-    '${startTime.minute.toString().padLeft(2, '0')}';
+    if (startTime != null) {
+      startTimeRes =
+      '${startTime.hour.toString().padLeft(2, '0')}:'
+      '${startTime.minute.toString().padLeft(2, '0')}';
+    }
 
-    String endTimeRes =
-    '${endTime.hour.toString().padLeft(2, '0')}:'
-    '${endTime.minute.toString().padLeft(2, '0')}';
+    if (endTime != null) {
+      endTimeRes =
+      '${endTime.hour.toString().padLeft(2, '0')}:'
+      '${endTime.minute.toString().padLeft(2, '0')}';
+    }
 
     if (TaskDate != null) {
       while (TaskDate.isNotEmpty == true) {
@@ -172,8 +183,8 @@ class DatabaseService {
 
   //Part of addTaskOccurence func. 
   //Adds data by date
-  void insertTaskOccurenceWithDate(Database db, int taskId, String startTimeRes, 
-    String endTimeRes, String singleTaskDate) async{
+  void insertTaskOccurenceWithDate(Database db, int taskId, String? startTimeRes, 
+    String? endTimeRes, String singleTaskDate) async{
       await db.insert(
       _tasksOccuranceTableName, 
         {
@@ -187,8 +198,8 @@ class DatabaseService {
 
   //Part of addTaskOccurence func. 
   //Adds data by WeekId
-  void insertTaskOccurenceWithWeekId(Database db, int taskId, String startTimeRes, 
-  String endTimeRes, int weekId) async{
+  void insertTaskOccurenceWithWeekId(Database db, int taskId, String? startTimeRes, 
+  String? endTimeRes, int weekId) async{
     await db.insert(
     _tasksOccuranceTableName, 
       {
@@ -209,7 +220,7 @@ class DatabaseService {
     return dayOfWeek;
   }
 
-  Future<List<Task>> GetTasksForSelectedDay(DateTime chosenDay) async{
+  Future<List<Task>> GetTasksForSelectedDay(DateTime chosenDay, int weekDayId) async{
     final db = await database;
 
     final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
@@ -235,8 +246,8 @@ final data = await db.rawQuery('''
      ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
    LEFT JOIN $_tasksExecutionTableName e
      ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName
-   WHERE o.$_tasksOccuranceTaskDateColumnName = ?
- ''', [formattedDate]);
+   WHERE ((o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ) AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)) AND t.$_tasksCreatedAtDateColumnName <= ?
+ ''', [formattedDate, weekDayId, formattedDate, formattedDate]);
 
     print(chosenDay);
     print("\n");
@@ -244,7 +255,7 @@ final data = await db.rawQuery('''
     print(data);
 
     //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
-    List<Task> tasksForDay = data.map((e) => Task(occuranceId: e["id"] as int,title: e["title"] as String, description: e["description"] as String, deletedAt: e["deletedAt"] as String?, startTime: e["startTime"] as String?, endTime: e["endTime"] as String?, isDone: e["executionDate"] == null ? false : true)).toList();
+    List<Task> tasksForDay = data.map((e) => Task(occuranceId: e["id"] as int,title: e["title"] as String, description: e["description"] as String?, deletedAt: e["deletedAt"] as String?, startTime: e["startTime"] as String?, endTime: e["endTime"] as String?, isDone: e["executionDate"] == null ? false : true)).toList();
     //List<int> ids = data.map(data.)
     return tasksForDay;
   }
@@ -297,5 +308,16 @@ final data = await db.rawQuery('''
     await db.rawUpdate('''
     UPDATE $_tasksOccuranceTableName SET $_tasksOccuranceDeletedAtColumnName = ? WHERE $_tasksOccuranceIdColumnName = ?
   ''', [formattedDate,occuranceId]);
+  }
+
+  Future<void> deleteTaskCompletely(int occuranceId) async {
+
+    final db = await database;
+    //final formattedDate = DateFormat('yyyy-MM-dd').format(day);
+
+    await db.rawDelete('''
+    DELETE FROM $_tasksOccuranceTableName
+    WHERE $_tasksOccuranceIdColumnName = ?
+''', [occuranceId]);
   }
 }
