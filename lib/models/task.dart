@@ -5,6 +5,7 @@ class Task {
   final String? deletedAt;
   final String? startTime, endTime;
   bool isDone;
+  final String? doneAt;
 
   Task({
     required this.occuranceId,
@@ -13,6 +14,7 @@ class Task {
     this.deletedAt,
     this.startTime,
     this.endTime,
-    required this.isDone
+    required this.isDone,
+    this.doneAt
   });
 }

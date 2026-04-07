@@ -18,27 +18,20 @@ class _HomePageState extends State<HomePage>{
 
   int currentPage = 0;
 
-  List<double> weekleSummary = [
-    4.40,
-    2.50,
-    42.42,
-    10.50,
-    100.20,
-    88.99,
-    90.10,
-  ];
+  List<double> weekleSummary = [0,0,0,0,0,0,0];
 
   @override
   void initState() {
     super.initState();
-    pages = [
-      HomePageContent(weekleSummary: weekleSummary),
-      const CalendarPage(),
-    ];
+    getPercentage();
   }
 
   @override
   Widget build(BuildContext context){
+      final pages = [
+      HomePageContent(weekleSummary: weekleSummary),
+      const CalendarPage(),
+    ];
     return Scaffold(
       appBar: topBar(),
       backgroundColor: Colors.grey[300],
@@ -67,10 +60,14 @@ class _HomePageState extends State<HomePage>{
   BottomNavigationBar bottomNavBar() {
     return BottomNavigationBar(
       currentIndex: currentPage,
-      onTap: (value) {
+      onTap: (value) async {
         setState(() {
           currentPage = value;
         });
+
+        if (value == 0) {
+          await getPercentage();
+        }
       },
 
       items: const [BottomNavigationBarItem(
@@ -88,6 +85,15 @@ class _HomePageState extends State<HomePage>{
         label: "Calendar"
         )
       ]
+    );
+  }
+  
+  Future<void> getPercentage() async{
+    List<double> one = await _databaseService.getDonePercentage(DateTime.now());
+
+    setState(() {
+    weekleSummary = one;
+    },
     );
   }
 }

@@ -27,7 +27,7 @@ class _CalendarPageState extends State<CalendarPage> {
   TimeOfDay? _startTime = null;
   TimeOfDay? _endTime = null;
 
-  List<DateTime> _taskDate = [];
+  DateTime? _taskDate = null;
   //List<int>? _dayOfWeekId = [];
 
   bool showDateError = false;
@@ -117,7 +117,7 @@ class _CalendarPageState extends State<CalendarPage> {
   Future<void> _selectDate() async{
     DateTime? _picked = await showDatePicker(
       context: context, 
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: _selectedDate,
       firstDate: DateTime.utc(2020,01,01), 
       lastDate: DateTime.utc(2035,01,01),
       );
@@ -126,7 +126,7 @@ class _CalendarPageState extends State<CalendarPage> {
         setState(() {
           _selectedDate = _picked;
           _dateController.text = _picked.toString().split(" ")[0];
-          _taskDate?.add(_picked);
+          _taskDate = _picked;
         });
       }
   }
@@ -463,14 +463,14 @@ class _CalendarPageState extends State<CalendarPage> {
                               const SnackBar(content:Text('End time must be after start time'),)
                             );
                           }
-                          else if(_taskDate.isEmpty && _selectedDaysOfWeek.isEmpty){
+                          else if(_taskDate == null && _selectedDaysOfWeek.isEmpty){
                             dialogSetState(() {
                               showDateError = true;
                             });
                           }
                           else{
 
-                              final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => e.id).toList();
+                              final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => (e.id + 1)).toList();
                               await _databaseService.createTask(_title!, _description, _startTime, _endTime, _taskDate, selectedDaysOfWeekIds);
                               _GetInitTasks(_selectedDate);
 
@@ -496,14 +496,19 @@ class _CalendarPageState extends State<CalendarPage> {
                showDateError = false;
                 _startTime = null;
                 _endTime  = null;
-                _taskDate = [];
+                _taskDate = null;
+                _description = null;
                 //_dayOfWeekId = [];
                 _title = null;
+                _selectedDaysOfWeek = [];
+                _dateController.text = "";
+                _daysOfWeekController.text = "";
   }
       );
   }
 
   Future<dynamic> _displaySelectedTask(int index){
+    bool isChanged = false; 
     return showDialog(
       context: context, 
       builder: (BuildContext builder) {return StatefulBuilder(builder: (context, StateSetter setState) {
@@ -558,6 +563,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     Checkbox(
                     value: _chosenDayTasks[index].isDone, 
                     onChanged: (bool? value) => {
+                      isChanged = !isChanged,
                       setState(() {
                       _chosenDayTasks[index].isDone = !_chosenDayTasks[index].isDone;
                       }
@@ -575,9 +581,11 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       }
       ).then((value) {
-        setState(() {
-          _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
-        });
+        if (isChanged) {
+          setState(() {
+            _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
+          });
+        }
       });
   }
 

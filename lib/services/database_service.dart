@@ -120,7 +120,7 @@ class DatabaseService {
   //Handles creating the whole task
   Future<void> createTask(
     String title,String? description, 
-    TimeOfDay? startTime, TimeOfDay? endTime, List<DateTime>? TaskDate, List<int>? DayOfWeekIds) async{
+    TimeOfDay? startTime, TimeOfDay? endTime, DateTime? TaskDate, List<int>? DayOfWeekIds) async{
     final db = await database;
     int taskId = await addTask(db, title, description);
     await addTaskOccurence(db,taskId, startTime, endTime, TaskDate, DayOfWeekIds);
@@ -146,7 +146,7 @@ class DatabaseService {
   //Adds task occurance to "tasksOccurance" table, maping the data and separating them into multiple instances (day/date) 
   Future<void> addTaskOccurence(
     Database db, int taskId, TimeOfDay? startTime, 
-    TimeOfDay? endTime, List<DateTime>? TaskDate, List<int>? DayOfWeekIds
+    TimeOfDay? endTime, DateTime? TaskDate, List<int>? DayOfWeekIds
     ) async
     {
     
@@ -166,11 +166,8 @@ class DatabaseService {
     }
 
     if (TaskDate != null) {
-      while (TaskDate.isNotEmpty == true) {
-        String singleTaskDate = DateFormat('yyyy-MM-dd').format(TaskDate.last);
+        String singleTaskDate = DateFormat('yyyy-MM-dd').format(TaskDate);
         insertTaskOccurenceWithDate(db, taskId, startTimeRes, endTimeRes, singleTaskDate);
-        TaskDate.removeLast();
-      }
     }
 
     if (DayOfWeekIds != null) {
@@ -245,9 +242,9 @@ final data = await db.rawQuery('''
    LEFT JOIN $_tasksTableName t
      ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
    LEFT JOIN $_tasksExecutionTableName e
-     ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName
+     ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName  AND e.$_tasksExecutionDateColumnName = ?
    WHERE ((o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ) AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)) AND t.$_tasksCreatedAtDateColumnName <= ?
- ''', [formattedDate, weekDayId, formattedDate, formattedDate]);
+ ''', [formattedDate,formattedDate, weekDayId, formattedDate, formattedDate]);
 
     print(chosenDay);
     print("\n");
@@ -255,7 +252,15 @@ final data = await db.rawQuery('''
     print(data);
 
     //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
-    List<Task> tasksForDay = data.map((e) => Task(occuranceId: e["id"] as int,title: e["title"] as String, description: e["description"] as String?, deletedAt: e["deletedAt"] as String?, startTime: e["startTime"] as String?, endTime: e["endTime"] as String?, isDone: e["executionDate"] == null ? false : true)).toList();
+    List<Task> tasksForDay = data.map((e) => Task(
+      occuranceId: e["id"] as int,
+      title: e["title"] as String, 
+      description: e["description"] as String?, 
+      deletedAt: e["deletedAt"] as String?, 
+      startTime: e["startTime"] as String?, 
+      endTime: e["endTime"] as String?,
+      doneAt: (e["$_tasksExecutionDateColumnName"] != null ? e["$_tasksExecutionDateColumnName"] : null) as String?,
+      isDone: e["executionDate"] == null ? false : true)).toList();
     //List<int> ids = data.map(data.)
     return tasksForDay;
   }
@@ -319,5 +324,54 @@ final data = await db.rawQuery('''
     DELETE FROM $_tasksOccuranceTableName
     WHERE $_tasksOccuranceIdColumnName = ?
 ''', [occuranceId]);
+  }
+
+  Future<List<double>> getDonePercentage(DateTime chosenDay) async {
+  List<double> res = List.filled(7, 0);
+
+  final startOfWeek =
+      chosenDay.subtract(Duration(days: chosenDay.weekday));
+
+  for (int i = 0; i < 7; i++) {
+    final day = startOfWeek.add(Duration(days: i));
+
+    res[i] = await getDonePercentageForSelectedDay(day);
+  }
+
+  return res;
+}
+
+  Future<double> getDonePercentageForSelectedDay(chosenDay) async{
+
+    final db = await database;
+
+    double res = 0;
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
+
+    final done = await db.rawQuery('''
+   SELECT COUNT(e.$_tasksExecutionTaskOccuranceIdColumnName) AS total
+   FROM $_tasksOccuranceTableName o
+   LEFT JOIN $_tasksExecutionTableName e
+    ON o.$_tasksOccuranceIdColumnName = e.$_tasksExecutionTaskOccuranceIdColumnName
+   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday + 1]);
+
+    int doneForm = done.first["total"] as int;
+
+    final all = await db.rawQuery('''
+   SELECT COUNT(o.$_tasksOccuranceIdColumnName) AS total
+   FROM $_tasksOccuranceTableName o
+   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday + 1]);
+
+    int allForm = all.first["total"] as int;
+
+    if (allForm != 0) {
+      res = ((doneForm/allForm) * 100).roundToDouble();
+      
+      print(res);
+    }
+  
+
+    return res;
   }
 }

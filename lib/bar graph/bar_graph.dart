@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/bar%20graph/bar_data.dart';
 
 class MyBarGraph extends StatelessWidget {
-final List weeklySummary;
+final List<double> weeklySummary;
 
   const MyBarGraph({
     super.key, 
