@@ -244,6 +244,7 @@ final data = await db.rawQuery('''
    LEFT JOIN $_tasksExecutionTableName e
      ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName  AND e.$_tasksExecutionDateColumnName = ?
    WHERE ((o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ) AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)) AND t.$_tasksCreatedAtDateColumnName <= ?
+   ORDER BY $_tasksOccuranceStartTimeColumnName
  ''', [formattedDate,formattedDate, weekDayId, formattedDate, formattedDate]);
 
     print(chosenDay);

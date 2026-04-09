@@ -503,6 +503,8 @@ class _CalendarPageState extends State<CalendarPage> {
                 _selectedDaysOfWeek = [];
                 _dateController.text = "";
                 _daysOfWeekController.text = "";
+                _startTimeController.text = "";
+                _endTimeController.text = "";
   }
       );
   }
