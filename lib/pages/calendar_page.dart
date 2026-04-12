@@ -1,5 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/task_dialog_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_application_1/models/dayOfWeek.dart';
 import 'package:flutter_application_1/models/task.dart';
@@ -307,7 +308,22 @@ class _CalendarPageState extends State<CalendarPage> {
                             
                           ),
                           onPressed: () => {
-                            _displaySelectedTask(index),
+                            TaskDialog.show(
+                              context: context,
+                              task: _chosenDayTasks[index],
+                              onChanged: (isChanged) async {
+                                if (isChanged) {
+                                  await _databaseService.SaveCompletionState(
+                                    _chosenDayTasks[index].occuranceId,
+                                    _selectedDate,
+                                  );
+                                  setState(() {
+                                    
+                                  });
+                                  //await getTasks(); // refresh UI
+                                }
+                              },
+                            ),
                             },
                           onLongPress: () => {
                             _displayTaskOccuranceDeleteDialoge(index, _selectedDate!),
@@ -509,87 +525,87 @@ class _CalendarPageState extends State<CalendarPage> {
       );
   }
 
-  Future<dynamic> _displaySelectedTask(int index){
-    bool isChanged = false; 
-    return showDialog(
-      context: context, 
-      builder: (BuildContext builder) {return StatefulBuilder(builder: (context, StateSetter setState) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-            title: Text(
-              _chosenDayTasks[index].title, 
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 36
-              ), 
-              ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Description: " + (_chosenDayTasks[index].description == null ? "NA" : _chosenDayTasks[index].description!),
-                  style: TextStyle(
-                    fontSize: 24
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  "Start time: " + (_chosenDayTasks[index].startTime != null ? _chosenDayTasks[index].startTime! : "NA"),
-                  style: TextStyle(
-                    fontSize: 24
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  "End time: " + (_chosenDayTasks[index].endTime != null ? _chosenDayTasks[index].startTime! : "NA"),
-                  style: TextStyle(
-                    fontSize: 24
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Is done?",
-                      style: TextStyle(
-                        fontSize: 24
-                        ),
-                      ),
-                    Checkbox(
-                    value: _chosenDayTasks[index].isDone, 
-                    onChanged: (bool? value) => {
-                      isChanged = !isChanged,
-                      setState(() {
-                      _chosenDayTasks[index].isDone = !_chosenDayTasks[index].isDone;
-                      }
-                    ),
-                  },
-                ),
-                ]
-                  
-                )
-                
-                ],
-            ),
-        );
-      }
-        );
-      }
-      ).then((value) {
-        if (isChanged) {
-          setState(() {
-            _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
-          });
-        }
-      });
-  }
+  //Future<dynamic> _displaySelectedTask(int index){
+  //  bool isChanged = false; 
+  //  return showDialog(
+  //    context: context, 
+  //    builder: (BuildContext builder) {return StatefulBuilder(builder: (context, StateSetter setState) {
+  //      return AlertDialog(
+  //        backgroundColor: Colors.white,
+  //          title: Text(
+  //            _chosenDayTasks[index].title, 
+  //            textAlign: TextAlign.center,
+  //            style: TextStyle(
+  //              fontSize: 36
+  //            ), 
+  //            ),
+  //          content: Column(
+  //            mainAxisSize: MainAxisSize.min,
+  //            crossAxisAlignment: CrossAxisAlignment.start,
+  //            children: [
+  //              Text(
+  //                "Description: " + (_chosenDayTasks[index].description == null ? "NA" : _chosenDayTasks[index].description!),
+  //                style: TextStyle(
+  //                  fontSize: 24
+  //                ),
+  //              ),
+//
+  //              const SizedBox(height: 10),
+//
+  //              Text(
+  //                "Start time: " + (_chosenDayTasks[index].startTime != null ? _chosenDayTasks[index].startTime! : "NA"),
+  //                style: TextStyle(
+  //                  fontSize: 24
+  //                ),
+  //              ),
+//
+  //              const SizedBox(height: 10),
+//
+  //              Text(
+  //                "End time: " + (_chosenDayTasks[index].endTime != null ? _chosenDayTasks[index].startTime! : "NA"),
+  //                style: TextStyle(
+  //                  fontSize: 24
+  //                ),
+  //              ),
+//
+  //              const SizedBox(height: 10),
+  //              Row(
+  //                crossAxisAlignment: CrossAxisAlignment.center,
+  //                children: [
+  //                  Text(
+  //                    "Is done?",
+  //                    style: TextStyle(
+  //                      fontSize: 24
+  //                      ),
+  //                    ),
+  //                  Checkbox(
+  //                  value: _chosenDayTasks[index].isDone, 
+  //                  onChanged: (bool? value) => {
+  //                    isChanged = !isChanged,
+  //                    setState(() {
+  //                    _chosenDayTasks[index].isDone = !_chosenDayTasks[index].isDone;
+  //                    }
+  //                  ),
+  //                },
+  //              ),
+  //              ]
+  //                
+  //              )
+  //              
+  //              ],
+  //          ),
+  //      );
+  //    }
+  //      );
+  //    }
+  //    ).then((value) {
+  //      if (isChanged) {
+  //        setState(() {
+  //          _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
+  //        });
+  //      }
+  //    });
+  //}
 
   Widget _dayOfWeeksList() {
     return FutureBuilder(future: _databaseService.getDayOfWeeks(), builder: (context, snapshot){

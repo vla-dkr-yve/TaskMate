@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage>{
 
   Map<int, List<Task>> tasksByHour = {};
 
+
   @override
   void initState() {
     super.initState();
@@ -160,24 +161,45 @@ class _HomePageState extends State<HomePage>{
 }
 }
 
-class HomePageContent extends StatelessWidget {
+class HomePageContent extends StatefulWidget {
   const HomePageContent({
     super.key,
     required this.weekleSummary,
     required this.todayTasksWTime,
     required this.todayTasksWOTime,
-    required this.tasksByHour
+    required this.tasksByHour,
   });
 
   final List<double> weekleSummary;
   final List<Task> todayTasksWOTime;
   final List<Task> todayTasksWTime;
   final Map<int, List<Task>> tasksByHour;
+
+  @override
+  State<HomePageContent> createState() => _HomePageContentState();
+}
   
-  
+class _HomePageContentState extends State<HomePageContent> {
+  bool showAllHours = false;
+
+  List<int> getVisibleHours() {
+    if (showAllHours) {
+      return List.generate(24, (index) => index);
+    } else {
+      return widget.tasksByHour.keys.toList()..sort();
+    }
+  }
+
+  void switchDisplayType() {
+    setState(() {
+      showAllHours = !showAllHours;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final visibleHours = getVisibleHours();
+
     return ListView(
       children: [
         Container(
@@ -188,7 +210,7 @@ class HomePageContent extends StatelessWidget {
             child: SizedBox(
               height: 200,
               child: MyBarGraph(
-                weeklySummary: weekleSummary,
+                weeklySummary: widget.weekleSummary,
               ),
               ),
           ),
@@ -199,14 +221,14 @@ class HomePageContent extends StatelessWidget {
             children: [
               SizedBox(height: 25),
               Text(
-                "Tasks for today: ", 
+                "Tasks for the whole day", 
                 style: TextStyle(
                   fontSize: 20,
                   ),
                 ),
               ListView.separated(
                 physics: NeverScrollableScrollPhysics(),
-                itemCount: todayTasksWOTime.length,
+                itemCount: widget.todayTasksWOTime.length,
                 padding: EdgeInsets.all(15),
                 shrinkWrap: true,
                 separatorBuilder: (context,index) => SizedBox(height: 25), 
@@ -219,7 +241,7 @@ class HomePageContent extends StatelessWidget {
                       decoration: BoxDecoration(
                         //color: const Color.fromARGB(255, 198, 201, 203),
                         //color: _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
-                        color: todayTasksWOTime[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : todayTasksWOTime[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
+                        color: widget.todayTasksWOTime[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : widget.todayTasksWOTime[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
                         borderRadius: BorderRadius.circular(15),
                         ),
                         child: TextButton(
@@ -232,7 +254,7 @@ class HomePageContent extends StatelessWidget {
                                   maxLines: 2,
                                   minFontSize: 18,
                                   textAlign: TextAlign.center,
-                                  todayTasksWOTime[index].title,
+                                  widget.todayTasksWOTime[index].title,
                                   style: TextStyle(
                                     fontSize: 24
                                   ),
@@ -243,7 +265,7 @@ class HomePageContent extends StatelessWidget {
                           
                                   maxLines: 1,
                                   minFontSize: 16,
-                                  todayTasksWOTime[index].description == null ? "" : todayTasksWOTime[index].description!,
+                                  widget.todayTasksWOTime[index].description == null ? "" : widget.todayTasksWOTime[index].description!,
                                   style: TextStyle(
                                     fontSize: 20
                                   ),
@@ -264,12 +286,27 @@ class HomePageContent extends StatelessWidget {
                   );
                   },
                 ),
+                Text(
+                "Scheduled Tasks", 
+                style: TextStyle(
+                  fontSize: 20,
+                  ),
+                ),
+                TextButton(
+                onPressed: () {
+                  switchDisplayType();
+                },
+                child: Text(showAllHours ? "Collapse" : "Expand"),
+                ),
                 ListView.builder(
-  itemCount: 24,
+                  
+  itemCount: visibleHours.length,
   physics: NeverScrollableScrollPhysics(),
   shrinkWrap: true,
-  itemBuilder: (context, hour) {
-    final tasks = tasksByHour[hour] ?? [];
+  itemBuilder: (context, index) {
+    final hour = visibleHours[index];
+    final tasks = widget.tasksByHour[hour] ?? [];
+    double taskHeight = showAllHours ? 100 : 80;
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8),
@@ -303,11 +340,11 @@ class HomePageContent extends StatelessWidget {
           // TASKS COLUMN
           Expanded(
             child: Column(
-              children: tasks.isEmpty
+              children: tasks.isEmpty && !showAllHours
                   ? [
                       // empty hour placeholder
                       Container(
-                        height: 100,
+                        height: taskHeight,
                         alignment: Alignment.centerLeft,
                         padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Divider(
@@ -318,7 +355,7 @@ class HomePageContent extends StatelessWidget {
                     ]
                   : tasks.map((task) {
                       return Container(
-                        height: 100,
+                        height: taskHeight,
                         margin: EdgeInsets.only(bottom: 10, right: 10, top: 10),
                         padding: EdgeInsets.all(12),
                         width: double.infinity,
@@ -368,6 +405,4 @@ class HomePageContent extends StatelessWidget {
       ]
     );
   }
-
-  
 }
