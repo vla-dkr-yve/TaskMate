@@ -19,7 +19,6 @@ class _CalendarPageState extends State<CalendarPage> {
   final DatabaseService _databaseService = DatabaseService.instance;
 
 
-  //List<Task> _chosenDayTasks = new List.empty();
   List<Task> _chosenDayTasks = [];
 
   String? _title = null;
@@ -29,7 +28,6 @@ class _CalendarPageState extends State<CalendarPage> {
   TimeOfDay? _endTime = null;
 
   DateTime? _taskDate = null;
-  //List<int>? _dayOfWeekId = [];
 
   bool showDateError = false;
   bool showTitleError = false;
@@ -61,7 +59,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _GetInitTasks(DateTime chosenDay) async {
-    final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay, chosenDay.weekday + 1);
+    final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay, chosenDay.weekday);
     setState(() {
       _chosenDayTasks = tasks;
     }); 
@@ -107,7 +105,9 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   bool _isEndTimeValid() {
-    if (_startTime == null || _endTime == null) return true;
+    if (_startTime == null && _endTime == null) return true;
+
+    if (_startTime != null && _endTime == null) return false;
 
     final startMinutes = _startTime!.hour * 60 + _startTime!.minute;
     final endMinutes = _endTime!.hour * 60 + _endTime!.minute;
@@ -251,14 +251,11 @@ class _CalendarPageState extends State<CalendarPage> {
                       padding: EdgeInsets.all(10),
                       height: 145,
                       decoration: BoxDecoration(
-                        //color: const Color.fromARGB(255, 198, 201, 203),
-                        //color: _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
                         color: _chosenDayTasks[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
                         borderRadius: BorderRadius.circular(15),
                         ),
                         child: TextButton(
                           child: Column(
-                            //mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
@@ -320,7 +317,6 @@ class _CalendarPageState extends State<CalendarPage> {
                                   setState(() {
                                     
                                   });
-                                  //await getTasks(); // refresh UI
                                 }
                               },
                             ),
@@ -468,7 +464,6 @@ class _CalendarPageState extends State<CalendarPage> {
                       color: Colors.white,
                       child: MaterialButton(
                         onPressed: () async {
-                          //ADD HERE THE CODE FOR PROCESSING "createTask"
                           if (_title == null || _title!.isEmpty) {
                             dialogSetState((){
                               showTitleError = true;
@@ -486,13 +481,12 @@ class _CalendarPageState extends State<CalendarPage> {
                           }
                           else{
 
-                              final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => (e.id + 1)).toList();
+                              final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => (e.id)).toList();
                               await _databaseService.createTask(_title!, _description, _startTime, _endTime, _taskDate, selectedDaysOfWeekIds);
                               _GetInitTasks(_selectedDate);
 
                               Navigator.of(context).pop();
                           }
-                          //New twick
                         },
                         child: const Text(
                           "Done",
@@ -514,7 +508,6 @@ class _CalendarPageState extends State<CalendarPage> {
                 _endTime  = null;
                 _taskDate = null;
                 _description = null;
-                //_dayOfWeekId = [];
                 _title = null;
                 _selectedDaysOfWeek = [];
                 _dateController.text = "";
@@ -524,88 +517,6 @@ class _CalendarPageState extends State<CalendarPage> {
   }
       );
   }
-
-  //Future<dynamic> _displaySelectedTask(int index){
-  //  bool isChanged = false; 
-  //  return showDialog(
-  //    context: context, 
-  //    builder: (BuildContext builder) {return StatefulBuilder(builder: (context, StateSetter setState) {
-  //      return AlertDialog(
-  //        backgroundColor: Colors.white,
-  //          title: Text(
-  //            _chosenDayTasks[index].title, 
-  //            textAlign: TextAlign.center,
-  //            style: TextStyle(
-  //              fontSize: 36
-  //            ), 
-  //            ),
-  //          content: Column(
-  //            mainAxisSize: MainAxisSize.min,
-  //            crossAxisAlignment: CrossAxisAlignment.start,
-  //            children: [
-  //              Text(
-  //                "Description: " + (_chosenDayTasks[index].description == null ? "NA" : _chosenDayTasks[index].description!),
-  //                style: TextStyle(
-  //                  fontSize: 24
-  //                ),
-  //              ),
-//
-  //              const SizedBox(height: 10),
-//
-  //              Text(
-  //                "Start time: " + (_chosenDayTasks[index].startTime != null ? _chosenDayTasks[index].startTime! : "NA"),
-  //                style: TextStyle(
-  //                  fontSize: 24
-  //                ),
-  //              ),
-//
-  //              const SizedBox(height: 10),
-//
-  //              Text(
-  //                "End time: " + (_chosenDayTasks[index].endTime != null ? _chosenDayTasks[index].startTime! : "NA"),
-  //                style: TextStyle(
-  //                  fontSize: 24
-  //                ),
-  //              ),
-//
-  //              const SizedBox(height: 10),
-  //              Row(
-  //                crossAxisAlignment: CrossAxisAlignment.center,
-  //                children: [
-  //                  Text(
-  //                    "Is done?",
-  //                    style: TextStyle(
-  //                      fontSize: 24
-  //                      ),
-  //                    ),
-  //                  Checkbox(
-  //                  value: _chosenDayTasks[index].isDone, 
-  //                  onChanged: (bool? value) => {
-  //                    isChanged = !isChanged,
-  //                    setState(() {
-  //                    _chosenDayTasks[index].isDone = !_chosenDayTasks[index].isDone;
-  //                    }
-  //                  ),
-  //                },
-  //              ),
-  //              ]
-  //                
-  //              )
-  //              
-  //              ],
-  //          ),
-  //      );
-  //    }
-  //      );
-  //    }
-  //    ).then((value) {
-  //      if (isChanged) {
-  //        setState(() {
-  //          _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
-  //        });
-  //      }
-  //    });
-  //}
 
   Widget _dayOfWeeksList() {
     return FutureBuilder(future: _databaseService.getDayOfWeeks(), builder: (context, snapshot){

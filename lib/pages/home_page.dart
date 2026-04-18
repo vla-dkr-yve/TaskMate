@@ -1,14 +1,12 @@
-//Recheck tasks for previous days, whether they display correctly: 07.04.2026 - 4 tasks: 2 done, 2 not
-//Finish the first page FINALLY!!!!!!
 //Add notifications
 //Think about adding google calendar API support
-//Make end time obligatory if start is entered
 
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/bar%20graph/bar_graph.dart';
 import 'package:flutter_application_1/models/task.dart';
 import 'package:flutter_application_1/pages/calendar_page.dart';
 import 'package:flutter_application_1/services/database_service.dart';
+import 'package:flutter_application_1/services/task_dialog_service.dart';
 import 'package:intl/intl.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
@@ -47,7 +45,7 @@ class _HomePageState extends State<HomePage>{
   @override
   Widget build(BuildContext context){
       final pages = [
-      HomePageContent(weekleSummary: weekleSummary, todayTasksWOTime: todayTasksWOTime, todayTasksWTime: todayTasksWTime, tasksByHour: tasksByHour),
+      HomePageContent(databaseService: _databaseService,weekleSummary: weekleSummary, todayTasksWOTime: todayTasksWOTime, todayTasksWTime: todayTasksWTime, tasksByHour: tasksByHour),
       const CalendarPage(),
     ];
     return Scaffold(
@@ -117,7 +115,7 @@ class _HomePageState extends State<HomePage>{
   }
   
   Future<void> getTasks() async{
-    final tasks = await _databaseService.GetTasksForSelectedDay(DateTime.now(), DateTime.now().weekday + 1);
+    final tasks = await _databaseService.GetTasksForSelectedDay(DateTime.now(), DateTime.now().weekday);
 
     setState(() {
       todayTasks = tasks;
@@ -164,12 +162,14 @@ class _HomePageState extends State<HomePage>{
 class HomePageContent extends StatefulWidget {
   const HomePageContent({
     super.key,
+    required this.databaseService,
     required this.weekleSummary,
     required this.todayTasksWTime,
     required this.todayTasksWOTime,
     required this.tasksByHour,
   });
 
+  final DatabaseService databaseService;
   final List<double> weekleSummary;
   final List<Task> todayTasksWOTime;
   final List<Task> todayTasksWTime;
@@ -239,14 +239,10 @@ class _HomePageContentState extends State<HomePageContent> {
                       padding: EdgeInsets.all(10),
                       height: 90,
                       decoration: BoxDecoration(
-                        //color: const Color.fromARGB(255, 198, 201, 203),
-                        //color: _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
                         color: widget.todayTasksWOTime[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : widget.todayTasksWOTime[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
                         borderRadius: BorderRadius.circular(15),
                         ),
-                        child: TextButton(
                           child: Column(
-                            //mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
@@ -275,14 +271,7 @@ class _HomePageContentState extends State<HomePageContent> {
                               ],
                             
                           ),
-                          onPressed: () => {
-                            //_displaySelectedTask(index),
-                            },
-                          onLongPress: () => {
-                            //_displayTaskOccuranceDeleteDialoge(index, _selectedDate!),
-                          },
                         ),
-                      ),
                   );
                   },
                 ),
@@ -363,7 +352,7 @@ class _HomePageContentState extends State<HomePageContent> {
                           color: task.deletedAt != null
                               ? Colors.grey[300]
                               : task.isDone
-                                  ? Colors.green[200]
+                                  ? Color.fromARGB(255, 180, 249, 176)
                                   : Colors.red[200],
                           borderRadius: BorderRadius.circular(12),
                         ),

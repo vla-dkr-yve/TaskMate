@@ -30,7 +30,6 @@ class DatabaseService {
   final String _tasksOccuranceTaskDateColumnName = "taskDate";
   final String _tasksOccuranceDayOfWeekIdColumnName = "dayOfWeekId";
   final String _tasksOccuranceDeletedAtColumnName = "deletedAt";
-  //final String _tasksOccuranceTaskIsDone = "isDone";
 
   final String _tasksExecutionTableName = "tasksExecution";
   final String _tasksExecutionIdColumnName = "id";
@@ -220,17 +219,12 @@ class DatabaseService {
   Future<List<Task>> GetTasksForSelectedDay(DateTime chosenDay, int weekDayId) async{
     final db = await database;
 
-    final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
+    weekDayId += 1;
+    if (weekDayId == 8) {
+      weekDayId = 1;
+    }
 
-//      final data = await db.rawQuery('''
-//    SELECT 
-//    t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName, 
-//    o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName
-//    FROM $_tasksOccuranceTableName o
-//    LEFT JOIN $_tasksTableName t
-//      ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
-//    WHERE o.$_tasksOccuranceTaskDateColumnName = ?
-//  ''', [formattedDate]);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
 
 final data = await db.rawQuery('''
    SELECT 
@@ -247,11 +241,6 @@ final data = await db.rawQuery('''
    ORDER BY $_tasksOccuranceStartTimeColumnName
  ''', [formattedDate,formattedDate, weekDayId, formattedDate, formattedDate]);
 
-    print(chosenDay);
-    print("\n");
-    print([DateFormat('yyyy-MM-dd').format(chosenDay)]);
-    print(data);
-
     //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
     List<Task> tasksForDay = data.map((e) => Task(
       occuranceId: e["id"] as int,
@@ -262,7 +251,6 @@ final data = await db.rawQuery('''
       endTime: e["endTime"] as String?,
       doneAt: (e["$_tasksExecutionDateColumnName"] != null ? e["$_tasksExecutionDateColumnName"] : null) as String?,
       isDone: e["executionDate"] == null ? false : true)).toList();
-    //List<int> ids = data.map(data.)
     return tasksForDay;
   }
 
@@ -319,7 +307,6 @@ final data = await db.rawQuery('''
   Future<void> deleteTaskCompletely(int occuranceId) async {
 
     final db = await database;
-    //final formattedDate = DateFormat('yyyy-MM-dd').format(day);
 
     await db.rawDelete('''
     DELETE FROM $_tasksOccuranceTableName
@@ -368,8 +355,6 @@ final data = await db.rawQuery('''
 
     if (allForm != 0) {
       res = ((doneForm/allForm) * 100).roundToDouble();
-      
-      print(res);
     }
   
 
