@@ -1,5 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/notification_service.dart';
 import 'package:flutter_application_1/services/task_dialog_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_application_1/models/dayOfWeek.dart';
@@ -18,6 +19,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   final DatabaseService _databaseService = DatabaseService.instance;
 
+  final NotificationService _notificationService = NotificationService.instance;
 
   List<Task> _chosenDayTasks = [];
 
@@ -118,6 +120,7 @@ class _CalendarPageState extends State<CalendarPage> {
   Future<void> _selectDate() async{
     DateTime? _picked = await showDatePicker(
       context: context, 
+      locale: const Locale('en', 'GB'),
       initialDate: _selectedDate,
       firstDate: DateTime.utc(2020,01,01), 
       lastDate: DateTime.utc(2035,01,01),
@@ -226,6 +229,7 @@ class _CalendarPageState extends State<CalendarPage> {
               focusedDay: _selectedDate, 
               firstDay: DateTime.utc(2020,01,01), 
               lastDay: DateTime.utc(2035,01,01),
+              startingDayOfWeek: StartingDayOfWeek.monday,
               onDaySelected: _onDaySelected,
               )
           ),
@@ -347,7 +351,7 @@ class _CalendarPageState extends State<CalendarPage> {
     builder: (context, dialogSetState) { return AlertDialog(
             backgroundColor: Colors.white,
             title: const Text('Add Task'),
-            content: Column(
+            content: SingleChildScrollView(child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
@@ -483,6 +487,12 @@ class _CalendarPageState extends State<CalendarPage> {
 
                               final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => (e.id)).toList();
                               await _databaseService.createTask(_title!, _description, _startTime, _endTime, _taskDate, selectedDaysOfWeekIds);
+
+                              
+                              if (_taskDate == DateTime.now() || (selectedDaysOfWeekIds.contains(DateTime.now().weekday))) {
+                                _notificationService.scheduleNotificationForOneTask(Task(occuranceId: 0, title: _title!, isDone: false, startTime: _startTime.toString()));
+                              }
+
                               _GetInitTasks(_selectedDate);
 
                               Navigator.of(context).pop();
@@ -497,6 +507,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       ),
                     )
                 ],
+            ),
             ),
           );
     },

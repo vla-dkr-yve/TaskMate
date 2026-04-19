@@ -1,4 +1,6 @@
-//Add notifications
+//Add notifications +-
+//Fix Date Picker starts from Mon
+//Fix overflow due to keyboard appear - create task
 //Think about adding google calendar API support
 
 import 'package:flutter/material.dart';

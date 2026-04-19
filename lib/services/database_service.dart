@@ -74,13 +74,13 @@ class DatabaseService {
          db.execute('''
           INSERT INTO $_daysOfWeekTableName ($_daysOfWeekTitleColumnName)
           VALUES 
-            ('Sunday'),
             ('Monday'),
             ('Tuesday'),
             ('Wednesday'),
             ('Thursday'),
             ('Friday'),
-            ('Saturday')
+            ('Saturday'),
+            ('Sunday')
         ''');
 
           //tasksOccurance keeps track of all tasks in the following form:
@@ -219,11 +219,6 @@ class DatabaseService {
   Future<List<Task>> GetTasksForSelectedDay(DateTime chosenDay, int weekDayId) async{
     final db = await database;
 
-    weekDayId += 1;
-    if (weekDayId == 8) {
-      weekDayId = 1;
-    }
-
     final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
 
 final data = await db.rawQuery('''
@@ -252,6 +247,87 @@ final data = await db.rawQuery('''
       doneAt: (e["$_tasksExecutionDateColumnName"] != null ? e["$_tasksExecutionDateColumnName"] : null) as String?,
       isDone: e["executionDate"] == null ? false : true)).toList();
     return tasksForDay;
+  }
+
+  Future<List<Task>> GetTasksWithTimeForSelectedDay(DateTime chosenDay, int weekDayId) async{
+    final db = await database;
+
+    weekDayId += 1;
+    if (weekDayId == 8) {
+      weekDayId = 1;
+    }
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
+
+final data = await db.rawQuery('''
+   SELECT 
+   o.$_tasksOccuranceIdColumnName,
+   t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName, 
+   o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName, o.$_tasksOccuranceDeletedAtColumnName,
+   e.$_tasksExecutionDateColumnName
+   FROM $_tasksOccuranceTableName o
+   LEFT JOIN $_tasksTableName t
+     ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+   LEFT JOIN $_tasksExecutionTableName e
+     ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName  AND e.$_tasksExecutionDateColumnName = ?
+   WHERE (((o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ) 
+   AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)) 
+   AND t.$_tasksCreatedAtDateColumnName <= ?) 
+   AND o.$_tasksOccuranceStartTimeColumnName IS NOT NULL
+   ORDER BY $_tasksOccuranceStartTimeColumnName
+ ''', [formattedDate,formattedDate, weekDayId, formattedDate, formattedDate]);
+
+    //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
+    List<Task> tasksForDay = data.map((e) => Task(
+      occuranceId: e["id"] as int,
+      title: e["title"] as String, 
+      description: e["description"] as String?, 
+      deletedAt: e["deletedAt"] as String?, 
+      startTime: e["startTime"] as String?, 
+      endTime: e["endTime"] as String?,
+      doneAt: (e["$_tasksExecutionDateColumnName"] != null ? e["$_tasksExecutionDateColumnName"] : null) as String?,
+      isDone: e["executionDate"] == null ? false : true)).toList();
+    return tasksForDay;
+  }
+
+  Future<List<Task>>GetTasksForHour(int hour) async{
+    final db = await database;
+
+    DateTime today = DateTime.now();
+
+    var dayOfWeek = today.weekday;
+
+    final formattedDate = DateFormat('yyyy-MM-dd').format(today);
+
+    final data = await db.rawQuery('''
+   SELECT 
+   o.$_tasksOccuranceIdColumnName,
+   t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName, 
+   o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName, o.$_tasksOccuranceDeletedAtColumnName,
+   e.$_tasksExecutionDateColumnName
+   FROM $_tasksOccuranceTableName o
+   LEFT JOIN $_tasksTableName t
+     ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+   LEFT JOIN $_tasksExecutionTableName e
+     ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName  AND e.$_tasksExecutionDateColumnName = ?
+   WHERE (((o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ) 
+   AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)) 
+   AND t.$_tasksCreatedAtDateColumnName <= ?) 
+   AND o.$_tasksOccuranceStartTimeColumnName IS NOT NULL AND HOUR(e.$_tasksOccuranceStartTimeColumnName) = ?
+   ORDER BY $_tasksOccuranceStartTimeColumnName
+ ''', [formattedDate,formattedDate, dayOfWeek, formattedDate, formattedDate, hour]);
+
+    //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
+    List<Task> tasksForHour = data.map((e) => Task(
+      occuranceId: e["id"] as int,
+      title: e["title"] as String, 
+      description: e["description"] as String?, 
+      deletedAt: e["deletedAt"] as String?, 
+      startTime: e["startTime"] as String?, 
+      endTime: e["endTime"] as String?,
+      doneAt: (e["$_tasksExecutionDateColumnName"] != null ? e["$_tasksExecutionDateColumnName"] : null) as String?,
+      isDone: e["executionDate"] == null ? false : true)).toList();
+    return tasksForHour;
   }
 
   Future<void> SaveCompletionState(int id, DateTime day) async{
@@ -342,14 +418,14 @@ final data = await db.rawQuery('''
    FROM $_tasksOccuranceTableName o
    LEFT JOIN $_tasksExecutionTableName e
     ON o.$_tasksOccuranceIdColumnName = e.$_tasksExecutionTaskOccuranceIdColumnName
-   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday + 1]);
+   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday]);
 
     int doneForm = done.first["total"] as int;
 
     final all = await db.rawQuery('''
    SELECT COUNT(o.$_tasksOccuranceIdColumnName) AS total
    FROM $_tasksOccuranceTableName o
-   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday + 1]);
+   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday]);
 
     int allForm = all.first["total"] as int;
 
@@ -357,7 +433,7 @@ final data = await db.rawQuery('''
       res = ((doneForm/allForm) * 100).roundToDouble();
     }
   
-
+    print(res);
     return res;
   }
 }

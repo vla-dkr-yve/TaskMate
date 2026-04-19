@@ -85,25 +85,25 @@ Widget getBottomTitles (double value, TitleMeta meta) {
   Widget text;
   switch (value.toInt()) {
     case 0:
-      text = const Text('Sun', style: style);
-      break;
-    case 1:
       text = const Text('Mon', style: style);
       break;
-    case 2:
+    case 1:
       text = const Text('Tue', style: style);
       break;
-    case 3:
-      text = const Text('Wen', style: style);
+    case 2:
+      text = const Text('Wed', style: style);
       break;
-    case 4:
+    case 3:
       text = const Text('Thu', style: style);
       break;
-    case 5:
+    case 4:
       text = const Text('Fri', style: style);
       break;
-    case 6:
+    case 5:
       text = const Text('Sat', style: style);
+      break;
+    case 6:
+      text = const Text('Sun', style: style);
       break;
     default:
       text = const Text('', style: style);
