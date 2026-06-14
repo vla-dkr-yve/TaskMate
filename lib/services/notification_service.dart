@@ -44,6 +44,14 @@ class NotificationService{
 
       await notificationsPlugin.initialize(settings: initSetting);
 
+       await notificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestNotificationsPermission();
+
+  await notificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestExactAlarmsPermission();
+
       _isInitialized = true;
     }
 
@@ -69,7 +77,7 @@ class NotificationService{
         id: id, 
         title: title, 
         body: body, 
-        notificationDetails: NotificationDetails());
+        notificationDetails: notificationDetails());
     }
 
   Future<void> LoadTasksAndScheduleNotifications() async{
@@ -121,9 +129,7 @@ class NotificationService{
 
   Future<void> scheduleNotification(List<Task> tasks) async {
 
-    String hour_str = tasks[0].startTime!.substring(0,2);
-
-    int hour_int = int.parse(hour_str);
+    final hour = int.parse(tasks[0].startTime!.split(":")[0]);
 
     final now = tz.TZDateTime.now(tz.local);
 
@@ -132,30 +138,21 @@ class NotificationService{
       now.year,
       now.month,
       now.day,
-      hour_int,
+      hour,
       0
       );
     
     if (!scheduledDate.isAfter(now)) return;
-    print("Scheduling notification at: $scheduledDate");
 
     String message_text = CreateMessageText(tasks);
 
     await notificationsPlugin.zonedSchedule(
-      id: hour_int,
+      id: hour,
       title: 'You have ${tasks.length} upcomming activitie(s)',
       body: message_text,
       scheduledDate: scheduledDate,
-      notificationDetails:  NotificationDetails(
-        android: AndroidNotificationDetails(
-          'channel_id',
-          'channel_name',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle
+      notificationDetails:  notificationDetails(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle
     );
   }
 
@@ -180,5 +177,4 @@ class NotificationService{
     // reschedule that hour
     await scheduleNotification(tasksForHour);
   }
-  
 }

@@ -1,5 +1,8 @@
+import 'dart:math';
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_application_1/services/notification_service.dart';
 import 'package:flutter_application_1/services/task_dialog_service.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +10,10 @@ import 'package:flutter_application_1/models/dayOfWeek.dart';
 import 'package:flutter_application_1/models/task.dart';
 import 'package:flutter_application_1/services/database_service.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+class AppState {
+  static String? slogan;
+}
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
@@ -46,11 +53,14 @@ class _CalendarPageState extends State<CalendarPage> {
 
   final TextEditingController _daysOfWeekController = TextEditingController();
 
+  String _slogan = "";
+
   @override
-  void initState() {
+  void initState(){
     super.initState();
     _loadDays();
     _GetInitTasks(_selectedDate);
+    getSlogan();
   }
 
   Future<void> _loadDays() async {
@@ -190,6 +200,28 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  Future<void> getSlogan() async {
+  if (AppState.slogan == null) {
+    AppState.slogan = await getRandomLine();
+  }
+
+  // Reuse the same value
+  _slogan = AppState.slogan!;
+  setState(() {});
+}
+
+  Future<String> getRandomLine() async {
+  final String fileContent = await rootBundle.loadString('assets/slogans.txt');
+
+  final List<String> lines = fileContent
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+
+  final random = Random();
+  return lines[random.nextInt(lines.length)];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +246,7 @@ class _CalendarPageState extends State<CalendarPage> {
           Column(
             children: [
               _dayOfWeeksList(),
-              Text("It’s okay to move at your own pace")
+              Text(_slogan)
               ]
           ),
 
