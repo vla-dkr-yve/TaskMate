@@ -7,6 +7,9 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import '../constants/notification_settings.dart';
 
+// Pre-scheduling constant
+const int _kScheduleDays = 3;
+
 class NotificationService {
   static NotificationService? _ns;
   static final NotificationService instance = NotificationService._constructor();
@@ -65,7 +68,7 @@ class NotificationService {
         channelDescription: 'Daily Notification Channel',
         importance: Importance.max,
         priority: Priority.high,
-        icon: 'ic_notification'
+        icon: 'ic_notification',
       ),
       iOS: DarwinNotificationDetails(),
     );
@@ -98,83 +101,103 @@ class NotificationService {
     return prefs.getInt(NotificationSettings.keyMinutesBefore) ?? 15;
   }
 
-  // ── Load & schedule all of today's notifications ──────────────────────────
+  // ── Encode a collision-free notification ID ───────────────────────────────
+  //
+  // Notification IDs must be unique across all scheduled notifications.
+  // We pack: dayOffset (0 = today, 1 = tomorrow, …) and a per-day key
+  // (hour 0-23 for per_hour mode, occuranceId for per_task mode) into one int:
+  //
+  //   id = dayOffset * 10_000 + perDayKey
+  //
+  // This supports up to 9 days ahead and occuranceIds / hours up to 9999,
+  // which is more than sufficient for typical usage.
+
+  int _notifId(int dayOffset, int perDayKey) => dayOffset * 10000 + perDayKey;
+
+  // ── Load & schedule notifications for the next _kScheduleDays days ────────
 
   Future<void> loadTasksAndScheduleNotifications() async {
     await notificationsPlugin.cancelAll();
-    
+
     final mode = await _getNotificationMode();
-    print('Notification mode: $mode');
+    final minutesBefore = mode == 'per_task' ? await _getMinutesBefore() : 0;
 
-    List<Task> tasks = await _databaseService.GetTasksWithTimeForSelectedDay(
-      DateTime.now(),
-      DateTime.now().weekday,
-    );
-
-    print('Tasks fetched: ${tasks.length}');
-print('Tasks: ${tasks.map((t) => "${t.title} ${t.startTime}").toList()}');
+    print('Notification mode: $mode, scheduling $_kScheduleDays day(s) ahead');
 
     final now = DateTime.now();
 
-    // Keep only future tasks
-    tasks = tasks.where((task) {
-      if (task.startTime == null) return false;
-      final parts = task.startTime!.split(':');
-      final taskTime = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        int.parse(parts[0]),
-        int.parse(parts[1]),
-      );
-      return taskTime.isAfter(now);
-    }).toList();
+    for (int dayOffset = 0; dayOffset < _kScheduleDays; dayOffset++) {
+      final day = DateTime(now.year, now.month, now.day).add(Duration(days: dayOffset));
 
-    if (mode == 'per_hour') {
-      await _schedulePerHour(tasks);
-    } else {
-      final minutesBefore = await _getMinutesBefore();
-      await _schedulePerTask(tasks, minutesBefore);
+      List<Task> tasks = await _databaseService.GetTasksWithTimeForSelectedDay(
+        day,
+        day.weekday,
+      );
+
+      print('Day +$dayOffset (${day.toIso8601String().substring(0, 10)}): ${tasks.length} task(s) with time');
+
+      // For today, skip tasks that are already in the past.
+      if (dayOffset == 0) {
+        tasks = tasks.where((task) {
+          if (task.startTime == null) return false;
+          final parts = task.startTime!.split(':');
+          final taskTime = DateTime(
+            now.year, now.month, now.day,
+            int.parse(parts[0]), int.parse(parts[1]),
+          );
+          if (mode == 'per_hour') {
+            return taskTime.isAfter(now);
+          } else {
+            final fireTime = taskTime.subtract(Duration(minutes: minutesBefore));
+            return fireTime.isAfter(now);
+          }
+        }).toList();
+      }
+
+      if (mode == 'per_hour') {
+        await _schedulePerHour(tasks, day, dayOffset);
+      } else {
+        await _schedulePerTask(tasks, minutesBefore, day, dayOffset);
+      }
     }
   }
 
-  // ── Per-hour mode (original behaviour) ───────────────────────────────────
+  // ── Per-hour mode ─────────────────────────────────────────────────────────
 
-  Future<void> _schedulePerHour(List<Task> tasks) async {
+  Future<void> _schedulePerHour(List<Task> tasks, DateTime day, int dayOffset) async {
     final Map<int, List<Task>> tasksByHour = {};
 
-    for (var task in tasks) {
+    for (final task in tasks) {
       if (task.startTime == null) continue;
       final hour = int.parse(task.startTime!.split(':')[0]);
       tasksByHour.putIfAbsent(hour, () => []).add(task);
     }
 
     for (final entry in tasksByHour.entries) {
-      await _scheduleHourlyNotification(entry.value);
+      await _scheduleHourlyNotification(entry.value, day, dayOffset);
     }
   }
 
-  Future<void> _scheduleHourlyNotification(List<Task> tasks) async {
+  Future<void> _scheduleHourlyNotification(
+      List<Task> tasks, DateTime day, int dayOffset) async {
     final hour = int.parse(tasks[0].startTime!.split(':')[0]);
 
     final now = tz.TZDateTime.now(tz.local);
     final scheduledDate = tz.TZDateTime(
       tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      0,
+      day.year, day.month, day.day,
+      hour, 0,
     );
 
     if (!scheduledDate.isAfter(now)) return;
 
-    print('Scheduling notification for: ${tasks.length} size at $scheduledDate');
-
+    final id = _notifId(dayOffset, hour);
     final messageText = _createMessageText(tasks);
 
+    print('Scheduling per-hour notification id=$id for $scheduledDate');
+
     await notificationsPlugin.zonedSchedule(
-      id: hour,
+      id: id,
       title: 'You have ${tasks.length} upcoming activitie(s)',
       body: messageText,
       scheduledDate: scheduledDate,
@@ -183,15 +206,17 @@ print('Tasks: ${tasks.map((t) => "${t.title} ${t.startTime}").toList()}');
     );
   }
 
-  // ── Per-task mode (one notification per task, offset by minutesBefore) ───
+  // ── Per-task mode ─────────────────────────────────────────────────────────
 
-  Future<void> _schedulePerTask(List<Task> tasks, int minutesBefore) async {
+  Future<void> _schedulePerTask(
+      List<Task> tasks, int minutesBefore, DateTime day, int dayOffset) async {
     for (final task in tasks) {
-      await _scheduleTaskNotification(task, minutesBefore);
+      await _scheduleTaskNotification(task, minutesBefore, day, dayOffset);
     }
   }
 
-  Future<void> _scheduleTaskNotification(Task task, int minutesBefore) async {
+  Future<void> _scheduleTaskNotification(
+      Task task, int minutesBefore, DateTime day, int dayOffset) async {
     if (task.startTime == null) return;
 
     final parts = task.startTime!.split(':');
@@ -200,27 +225,22 @@ print('Tasks: ${tasks.map((t) => "${t.title} ${t.startTime}").toList()}');
 
     final now = tz.TZDateTime.now(tz.local);
 
-    // Fire at (startTime - minutesBefore)
     final taskDateTime = tz.TZDateTime(
       tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      minute,
+      day.year, day.month, day.day,
+      hour, minute,
     );
 
-    final scheduledDate =
-        taskDateTime.subtract(Duration(minutes: minutesBefore));
+    final scheduledDate = taskDateTime.subtract(Duration(minutes: minutesBefore));
 
     if (!scheduledDate.isAfter(now)) return;
 
-    print('Scheduling notification for: ${task.title} at $scheduledDate');
-    // Use a unique ID per task so notifications don't overwrite each other.
-    // Encode hour*60+minute to keep it stable across rescheduling.
+    final id = _notifId(dayOffset, task.occuranceId);
+
+    print('Scheduling per-task notification id=$id for "${task.title}" at $scheduledDate');
 
     await notificationsPlugin.zonedSchedule(
-      id: task.occuranceId,
+      id: id,
       title: 'Upcoming: ${task.title}',
       body: minutesBefore == 1
           ? 'Starting in 1 minute  •  ${task.startTime}${task.endTime != null ? ' – ${task.endTime}' : ''}'
@@ -234,28 +254,46 @@ print('Tasks: ${tasks.map((t) => "${t.title} ${t.startTime}").toList()}');
   // ── Reschedule a single task (called after add / edit / delete) ───────────
 
   Future<void> scheduleNotificationForOneTask(Task task) async {
+    final mode = await _getNotificationMode();
+    print('Notification mode: $mode');
 
-  final mode = await _getNotificationMode();
-  print('Notification mode: $mode');
+    final now = DateTime.now();
 
-  if (mode == 'per_hour') {
-    final hour = int.parse(task.startTime!.split(':')[0]);
-    await notificationsPlugin.cancel(id: hour);
-    final tasksForHour = await _databaseService.GetTasksForHour(hour);
-    await _scheduleHourlyNotification(tasksForHour);
-  } else {
-    await notificationsPlugin.cancel(id: task.occuranceId);
+    if (mode == 'per_hour') {
+      final hour = int.parse(task.startTime!.split(':')[0]);
 
-    if (task.deletedAt != null || task.isDone) return;
+      // Reschedule the affected hour-bucket for each pre-loaded day.
+      for (int dayOffset = 0; dayOffset < _kScheduleDays; dayOffset++) {
+        final day = DateTime(now.year, now.month, now.day).add(Duration(days: dayOffset));
+        final id = _notifId(dayOffset, hour);
+        await notificationsPlugin.cancel(id: id);
 
-    final minutesBefore = await _getMinutesBefore();
-    await _scheduleTaskNotification(task, minutesBefore);
+        final tasksForHour = await _databaseService.GetTasksForHour(hour, day);
+        if (tasksForHour.isNotEmpty) {
+          await _scheduleHourlyNotification(tasksForHour, day, dayOffset);
+        }
+      }
+    } else {
+      // Cancel this task's notification for every pre-loaded day.
+      for (int dayOffset = 0; dayOffset < _kScheduleDays; dayOffset++) {
+        final id = _notifId(dayOffset, task.occuranceId);
+        await notificationsPlugin.cancel(id: id);
+      }
+
+      if (task.deletedAt != null || task.isDone) return;
+
+      final minutesBefore = await _getMinutesBefore();
+
+      // Re-schedule for each day this occurrence applies to.
+      // For a recurring (weekday-based) task this fires on multiple days;
+      // for a date-specific task it only fires on dayOffset == 0 or the
+      // matching future offset. The DB query already handles the filtering.
+      for (int dayOffset = 0; dayOffset < _kScheduleDays; dayOffset++) {
+        final day = DateTime(now.year, now.month, now.day).add(Duration(days: dayOffset));
+        await _scheduleTaskNotification(task, minutesBefore, day, dayOffset);
+      }
+    }
   }
-}
-
-Future<void> removeScheduledNotificationForOneTask(Task task) async {
-    await notificationsPlugin.cancel(id: task.occuranceId);
-}
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

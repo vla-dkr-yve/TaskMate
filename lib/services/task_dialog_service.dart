@@ -7,7 +7,7 @@ class TaskDialog {
     required Task task,
     required Function(bool isChanged) onChanged,
   }) async {
-    bool isChanged = false;
+    final bool originalState = task.isDone;
 
     await showDialog(
       context: context,
@@ -53,7 +53,6 @@ class TaskDialog {
                       Checkbox(
                         value: task.isDone,
                         onChanged: (value) {
-                          isChanged = true;
                           setState(() {
                             task.isDone = value!;
                           });
@@ -75,6 +74,6 @@ class TaskDialog {
       },
     );
 
-    onChanged(isChanged);
+    onChanged(task.isDone != originalState);
   }
 }

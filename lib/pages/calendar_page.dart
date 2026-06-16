@@ -326,7 +326,7 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       },
               todayBuilder: (context, day, focusedDay) {
-                final color = _getProductivityColor(day) ?? Colors.orange;
+                final color = _getProductivityColor(day) ?? Colors.blueGrey;
                 return Container(
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -365,7 +365,27 @@ class _CalendarPageState extends State<CalendarPage> {
                         color: _chosenDayTasks[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : _chosenDayTasks[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
                         borderRadius: BorderRadius.circular(15),
                         ),
-                        child: TextButton(
+                        child: GestureDetector(
+                          
+                          onTap: () => {
+                            TaskDialog.show(
+                              context: context,
+                              task: _chosenDayTasks[index],
+                              onChanged: (isChanged) async {
+                                if (isChanged) {
+                                  await _databaseService.SaveCompletionState(
+                                    _chosenDayTasks[index].occuranceId,
+                                    _selectedDate,
+                                  );
+                                  _notificationService.scheduleNotificationForOneTask(_chosenDayTasks[index]);
+                                  setState(() { });
+                                }
+                              },
+                            ),
+                            },
+                          onLongPress: () => {
+                            _displayTaskOccuranceDeleteDialoge(index, _selectedDate!),
+                          },
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -415,26 +435,6 @@ class _CalendarPageState extends State<CalendarPage> {
                             ],
                             
                           ),
-                          onPressed: () => {
-                            TaskDialog.show(
-                              context: context,
-                              task: _chosenDayTasks[index],
-                              onChanged: (isChanged) async {
-                                if (isChanged) {
-                                  await _databaseService.SaveCompletionState(
-                                    _chosenDayTasks[index].occuranceId,
-                                    _selectedDate,
-                                  );
-                                  setState(() {
-                                    
-                                  });
-                                }
-                              },
-                            ),
-                            },
-                          onLongPress: () => {
-                            _displayTaskOccuranceDeleteDialoge(index, _selectedDate!),
-                          },
                         ),
                       ),
                   );
@@ -599,11 +599,11 @@ class _CalendarPageState extends State<CalendarPage> {
                           else{
 
                               final List<int> selectedDaysOfWeekIds = _selectedDaysOfWeek.map((e) => (e.id)).toList();
-                              await _databaseService.createTask(_title!, _description, _startTime, _endTime, _taskDate, selectedDaysOfWeekIds);
+                              int taskId = await _databaseService.createTask(_title!, _description, _startTime, _endTime, _taskDate, selectedDaysOfWeekIds);
 
-                              
                               if (_taskDate == DateTime.now() || (selectedDaysOfWeekIds.contains(DateTime.now().weekday))) {
-                                _notificationService.scheduleNotificationForOneTask(Task(occuranceId: 0, title: _title!, isDone: false, startTime: _startTime.toString()));
+                                int occuranceIdToSend = await _databaseService.getOccuranceId(taskId, DateTime.now());
+                                _notificationService.scheduleNotificationForOneTask(Task(occuranceId: occuranceIdToSend, title: _title!, isDone: false, startTime: _startTime.toString()));
                               }
 
                               _GetInitTasks(_selectedDate);
@@ -657,7 +657,7 @@ class _CalendarPageState extends State<CalendarPage> {
         return AlertDialog(
           backgroundColor: Colors.white,
             title: Text(
-              _chosenDayTasks[index].deletedAt == null ? "Do you want to archive the instance? It will leave in history but will not occure any more" : "Do you want to delete instance it will be completely removed!", 
+              _chosenDayTasks[index].deletedAt == null ? "Do you want to archive the instance? It will leave in history but will not occure any more" : "Do you want to delete instance? It will be completely removed!", 
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 24
@@ -668,7 +668,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     TextButton(
-                      onPressed: Navigator.of(context).pop,
+                      onPressed: () => Navigator.of(context).pop(false),
                       child:
                       Text(
                       "Cancel",
@@ -686,11 +686,13 @@ class _CalendarPageState extends State<CalendarPage> {
                         ),
                       ),
                       onPressed: () {
-                          _notificationService.removeScheduledNotificationForOneTask(_chosenDayTasks[index]);
+                          //_notificationService.removeScheduledNotificationForOneTask(_chosenDayTasks[index]);
                           _chosenDayTasks[index].deletedAt == null ? deleteTaskOccurance(_chosenDayTasks[index].occuranceId) : deleteTaskCompletely(_chosenDayTasks[index].occuranceId);
+                          _notificationService.scheduleNotificationForOneTask(_chosenDayTasks[index]);
                           _GetInitTasks(chosenDay);
-                          Navigator.of(context).pop();
+                          Navigator.of(context).pop(true);
                         },
+                        
                 ),
                 ]
                   
@@ -700,15 +702,9 @@ class _CalendarPageState extends State<CalendarPage> {
       }
         );
       }
-      ).then((value) {
-        setState(() async{
-          int res = await _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
-
-          if (res == 1) {
-           _notificationService.scheduleNotificationForOneTask(_chosenDayTasks[index]); 
-          }
-
-        });
+      ).then((didAction) async {
+          if (didAction != true) return;
+          setState(() {});
       });
   }
   

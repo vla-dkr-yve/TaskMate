@@ -117,12 +117,15 @@ class DatabaseService {
   }
 
   //Handles creating the whole task
-  Future<void> createTask(
+  //Returns taskId
+  Future<int> createTask(
     String title,String? description, 
     TimeOfDay? startTime, TimeOfDay? endTime, DateTime? TaskDate, List<int>? DayOfWeekIds) async{
     final db = await database;
     int taskId = await addTask(db, title, description);
     await addTaskOccurence(db,taskId, startTime, endTime, TaskDate, DayOfWeekIds);
+
+    return taskId;
   }
 
   //Part of createTask func
@@ -205,6 +208,31 @@ class DatabaseService {
         _tasksOccuranceDayOfWeekIdColumnName: weekId
       }
     );
+  }
+
+  Future<int> getOccuranceId(int taskId, [DateTime? TaskDate, int? DayOfWeekId]) async{
+    final db = await database;
+
+    final occuranceIdData;
+    if (TaskDate != null) {
+      occuranceIdData = await db.rawQuery('''
+        Select $_tasksOccuranceIdColumnName
+        FROM $_tasksOccuranceTableName
+        WHERE $_tasksOccuranceTaskIdColumnName = ? AND $_tasksOccuranceTaskDateColumnName = ?
+    }
+''', [taskId,TaskDate]);
+    }
+    else{
+      occuranceIdData = await db.rawQuery('''
+        Select $_tasksOccuranceIdColumnName
+        FROM $_tasksOccuranceTableName
+        WHERE $_tasksOccuranceTaskIdColumnName = ? AND $_tasksOccuranceDayOfWeekIdColumnName = ?
+      }
+      ''', [taskId,DayOfWeekId]);
+    }
+
+    int occuraneId = occuranceIdData.first["$_tasksOccuranceIdColumnName"] as int;
+    return occuraneId;
   }
 
   //Returns 
@@ -290,45 +318,50 @@ final data = await db.rawQuery('''
     return tasksForDay;
   }
 
-  Future<List<Task>>GetTasksForHour(int hour) async{
+  Future<List<Task>> GetTasksForHour(int hour, DateTime day) async {
     final db = await database;
 
-    DateTime today = DateTime.now();
+    var dayOfWeek = day.weekday + 1;
+    if (dayOfWeek == 8) dayOfWeek = 1;
 
-    var dayOfWeek = today.weekday;
-
-    final formattedDate = DateFormat('yyyy-MM-dd').format(today);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(day);
+    final hourStr = hour.toString().padLeft(2, '0');
 
     final data = await db.rawQuery('''
-   SELECT 
-   o.$_tasksOccuranceIdColumnName,
-   t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName, 
-   o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName, o.$_tasksOccuranceDeletedAtColumnName,
-   e.$_tasksExecutionDateColumnName
-   FROM $_tasksOccuranceTableName o
-   LEFT JOIN $_tasksTableName t
-     ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
-   LEFT JOIN $_tasksExecutionTableName e
-     ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName  AND e.$_tasksExecutionDateColumnName = ?
-   WHERE (((o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ) 
-   AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)) 
-   AND t.$_tasksCreatedAtDateColumnName <= ?) 
-   AND o.$_tasksOccuranceStartTimeColumnName IS NOT NULL AND HOUR(e.$_tasksOccuranceStartTimeColumnName) = ?
-   ORDER BY $_tasksOccuranceStartTimeColumnName
- ''', [formattedDate,formattedDate, dayOfWeek, formattedDate, formattedDate, hour]);
+      SELECT
+        o.$_tasksOccuranceIdColumnName,
+        t.$_tasksTitleColumnName, t.$_tasksDescriptionColumnName,
+        o.$_tasksOccuranceStartTimeColumnName, o.$_tasksOccuranceEndTimeColumnName,
+        o.$_tasksOccuranceDeletedAtColumnName,
+        e.$_tasksExecutionDateColumnName
+      FROM $_tasksOccuranceTableName o
+      LEFT JOIN $_tasksTableName t
+        ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+      LEFT JOIN $_tasksExecutionTableName e
+        ON e.$_tasksExecutionTaskOccuranceIdColumnName = o.$_tasksOccuranceIdColumnName
+        AND e.$_tasksExecutionDateColumnName = ?
+      WHERE (
+          (o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ?)
+          AND (o.$_tasksOccuranceDeletedAtColumnName >= ? OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)
+        )
+        AND t.$_tasksCreatedAtDateColumnName <= ?
+        AND o.$_tasksOccuranceStartTimeColumnName IS NOT NULL
+        AND substr(o.$_tasksOccuranceStartTimeColumnName, 1, 2) = ?
+      ORDER BY o.$_tasksOccuranceStartTimeColumnName
+    ''', [formattedDate, formattedDate, dayOfWeek, formattedDate, formattedDate, hourStr]);
 
-    //final data = await db.query(_tasksOccuranceTableName, where: '_tasksOccuranceTaskDateColumnName = ')
-    List<Task> tasksForHour = data.map((e) => Task(
+    return data.map((e) => Task(
       occuranceId: e["id"] as int,
-      title: e["title"] as String, 
-      description: e["description"] as String?, 
-      deletedAt: e["deletedAt"] as String?, 
-      startTime: e["startTime"] as String?, 
+      title: e["title"] as String,
+      description: e["description"] as String?,
+      deletedAt: e["deletedAt"] as String?,
+      startTime: e["startTime"] as String?,
       endTime: e["endTime"] as String?,
-      doneAt: (e["$_tasksExecutionDateColumnName"] != null ? e["$_tasksExecutionDateColumnName"] : null) as String?,
-      isDone: e["executionDate"] == null ? false : true)).toList();
-    return tasksForHour;
+      doneAt: e["$_tasksExecutionDateColumnName"] as String?,
+      isDone: e["executionDate"] != null,
+    )).toList();
   }
+
 
   Future<int> SaveCompletionState(int id, DateTime day) async{
 

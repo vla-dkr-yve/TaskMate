@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_application_1/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/notification_settings.dart';
 
@@ -11,6 +12,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  
   // Keys used across the app to read settings
   static const String keyNotificationMode = NotificationSettings.keyNotificationMode;
   static const String keyMinutesBefore = NotificationSettings.keyMinutesBefore;
@@ -79,6 +81,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_notificationMode == 'per_task') {
       await prefs.setInt(keyMinutesBefore, _minutesBefore);
     }
+
+    await NotificationService.instance.loadTasksAndScheduleNotifications();
 
     setState(() {
       _isSaving = false;
