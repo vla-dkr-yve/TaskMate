@@ -5,27 +5,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/bar%20graph/bar_graph.dart';
 import 'package:flutter_application_1/models/task.dart';
 import 'package:flutter_application_1/pages/calendar_page.dart';
+import 'package:flutter_application_1/pages/settings_page.dart';
 import 'package:flutter_application_1/services/database_service.dart';
 import 'package:flutter_application_1/services/task_dialog_service.dart';
 import 'package:intl/intl.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
-class HomePage extends StatefulWidget{
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>{
-
+class _HomePageState extends State<HomePage> {
   final DatabaseService _databaseService = DatabaseService.instance;
-
-  late final List<Widget> pages;
 
   int currentPage = 0;
 
-  List<double> weekleSummary = [0,0,0,0,0,0,0];
+  List<double> weekleSummary = [0, 0, 0, 0, 0, 0, 0];
 
   List<Task> todayTasks = [];
 
@@ -33,7 +31,6 @@ class _HomePageState extends State<HomePage>{
   List<Task> todayTasksWTime = [];
 
   Map<int, List<Task>> tasksByHour = {};
-
 
   @override
   void initState() {
@@ -43,31 +40,37 @@ class _HomePageState extends State<HomePage>{
   }
 
   @override
-  Widget build(BuildContext context){
-      final pages = [
-      HomePageContent(databaseService: _databaseService,weekleSummary: weekleSummary, todayTasksWOTime: todayTasksWOTime, todayTasksWTime: todayTasksWTime, tasksByHour: tasksByHour),
+  Widget build(BuildContext context) {
+    final pages = [
+      HomePageContent(
+        databaseService: _databaseService,
+        weekleSummary: weekleSummary,
+        todayTasksWOTime: todayTasksWOTime,
+        todayTasksWTime: todayTasksWTime,
+        tasksByHour: tasksByHour,
+      ),
       const CalendarPage(),
+      const SettingsPage(),
     ];
+
     return Scaffold(
       appBar: topBar(),
       backgroundColor: Colors.grey[300],
-
       body: pages[currentPage],
-
       bottomNavigationBar: bottomNavBar(),
     );
   }
 
   AppBar topBar() {
     return AppBar(
-      title: Text(
+      title: const Text(
         'TaskMate',
         style: TextStyle(
           color: Colors.black,
-          fontSize:24,
+          fontSize: 24,
           fontWeight: FontWeight.bold,
-          )
         ),
+      ),
       centerTitle: true,
       backgroundColor: Colors.grey[300],
     );
@@ -86,36 +89,37 @@ class _HomePageState extends State<HomePage>{
           await getTasks();
         }
       },
-
-      items: const [BottomNavigationBarItem(
-        icon: 
-          Icon(
-            Icons.home,
-            ),
-        label: "Home",
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
         ),
-      BottomNavigationBarItem(
-        icon: 
-          Icon(
-            Icons.calendar_month_outlined,
-            ),
-        label: "Calendar"
-        )
-      ]
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_month_outlined),
+          label: 'Calendar',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.settings_outlined),
+          label: 'Settings',
+        ),
+      ],
     );
   }
-  
-  Future<void> getPercentage() async{
-    List<double> one = await _databaseService.getDonePercentage(DateTime.now());
+
+  Future<void> getPercentage() async {
+    List<double> one =
+        await _databaseService.getDonePercentage(DateTime.now());
+
+    print('Weekly summary: $one');
 
     setState(() {
-    weekleSummary = one;
-    },
-    );
+      weekleSummary = one;
+    });
   }
-  
-  Future<void> getTasks() async{
-    final tasks = await _databaseService.GetTasksForSelectedDay(DateTime.now(), DateTime.now().weekday);
+
+  Future<void> getTasks() async {
+    final tasks = await _databaseService.GetTasksForSelectedDay(
+        DateTime.now(), DateTime.now().weekday);
 
     setState(() {
       todayTasks = tasks;
@@ -123,40 +127,39 @@ class _HomePageState extends State<HomePage>{
     await getTasksTime();
     groupTasksByHour();
   }
-  
-  Future<void> getTasksTime() async{
+
+  Future<void> getTasksTime() async {
     final List<Task> tasksWTime = [];
     final List<Task> tasksWOTime = [];
 
     for (var e in todayTasks) {
       if (e.startTime == null) {
         tasksWOTime.add(e);
-      }
-      else{
+      } else {
         tasksWTime.add(e);
       }
     }
     setState(() {
       todayTasksWOTime = tasksWOTime;
-      todayTasksWTime  = tasksWTime;
+      todayTasksWTime = tasksWTime;
     });
   }
 
   void groupTasksByHour() {
-  tasksByHour.clear();
+    tasksByHour.clear();
 
-  for (var task in todayTasksWTime) {
-    if (task.startTime == null) continue;
+    for (var task in todayTasksWTime) {
+      if (task.startTime == null) continue;
 
-    final hour = int.parse(task.startTime!.split(":")[0]);
+      final hour = int.parse(task.startTime!.split(':')[0]);
 
-    if (!tasksByHour.containsKey(hour)) {
-      tasksByHour[hour] = [];
+      if (!tasksByHour.containsKey(hour)) {
+        tasksByHour[hour] = [];
+      }
+
+      tasksByHour[hour]!.add(task);
     }
-
-    tasksByHour[hour]!.add(task);
   }
-}
 }
 
 class HomePageContent extends StatefulWidget {
@@ -178,7 +181,7 @@ class HomePageContent extends StatefulWidget {
   @override
   State<HomePageContent> createState() => _HomePageContentState();
 }
-  
+
 class _HomePageContentState extends State<HomePageContent> {
   bool showAllHours = false;
 
@@ -203,195 +206,188 @@ class _HomePageContentState extends State<HomePageContent> {
     return ListView(
       children: [
         Container(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 60),
-            child: SizedBox(
-              height: 200,
-              child: MyBarGraph(
-                weeklySummary: widget.weekleSummary,
-              ),
-              ),
-          ),
-        
-        ),
-      ),
-      Column(
-            children: [
-              SizedBox(height: 25),
-              Text(
-                "Tasks for the whole day", 
-                style: TextStyle(
-                  fontSize: 20,
-                  ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 60),
+              child: SizedBox(
+                height: 200,
+                child: MyBarGraph(
+                  weeklySummary: widget.weekleSummary,
                 ),
-              ListView.separated(
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: widget.todayTasksWOTime.length,
-                padding: EdgeInsets.all(15),
-                shrinkWrap: true,
-                separatorBuilder: (context,index) => SizedBox(height: 25), 
-                itemBuilder: (context, index) {
-                  return Opacity(
-                    opacity: 1,
-                    child: Container(
-                      padding: EdgeInsets.all(10),
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: widget.todayTasksWOTime[index].deletedAt != null ? const Color.fromARGB(255, 198, 201, 203) : widget.todayTasksWOTime[index].isDone == false ? Color.fromARGB(255, 243, 141, 141) : Color.fromARGB(255, 180, 249, 176),
-                        borderRadius: BorderRadius.circular(15),
-                        ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: AutoSizeText(
-                                  maxLines: 2,
-                                  minFontSize: 18,
-                                  textAlign: TextAlign.center,
-                                  widget.todayTasksWOTime[index].title,
-                                  style: TextStyle(
-                                    fontSize: 24
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: AutoSizeText(
-                          
-                                  maxLines: 1,
-                                  minFontSize: 16,
-                                  widget.todayTasksWOTime[index].description == null ? "" : widget.todayTasksWOTime[index].description!,
-                                  style: TextStyle(
-                                    fontSize: 20
-                                  ),
-                                ),
-                              ),
-                              
-                              ],
-                            
+              ),
+            ),
+          ),
+        ),
+        Column(
+          children: [
+            const SizedBox(height: 25),
+            const Text(
+              'Tasks for the whole day',
+              style: TextStyle(fontSize: 20),
+            ),
+            ListView.separated(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.todayTasksWOTime.length,
+              padding: const EdgeInsets.all(15),
+              shrinkWrap: true,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: 25),
+              itemBuilder: (context, index) {
+                return Opacity(
+                  opacity: 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: widget.todayTasksWOTime[index].deletedAt != null
+                          ? const Color.fromARGB(255, 198, 201, 203)
+                          : widget.todayTasksWOTime[index].isDone == false
+                              ? const Color.fromARGB(255, 243, 141, 141)
+                              : const Color.fromARGB(255, 180, 249, 176),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: AutoSizeText(
+                            maxLines: 2,
+                            minFontSize: 18,
+                            textAlign: TextAlign.center,
+                            widget.todayTasksWOTime[index].title,
+                            style: const TextStyle(fontSize: 24),
                           ),
                         ),
-                  );
-                  },
-                ),
-                Text(
-                "Scheduled Tasks", 
-                style: TextStyle(
-                  fontSize: 20,
+                        Expanded(
+                          child: AutoSizeText(
+                            maxLines: 1,
+                            minFontSize: 16,
+                            widget.todayTasksWOTime[index].description == null
+                                ? ''
+                                : widget.todayTasksWOTime[index].description!,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                TextButton(
-                onPressed: () {
-                  switchDisplayType();
-                },
-                child: Text(showAllHours ? "Collapse" : "Expand"),
-                ),
-                ListView.builder(
-                  
-  itemCount: visibleHours.length,
-  physics: NeverScrollableScrollPhysics(),
-  shrinkWrap: true,
-  itemBuilder: (context, index) {
-    final hour = visibleHours[index];
-    final tasks = widget.tasksByHour[hour] ?? [];
-    double taskHeight = showAllHours ? 100 : 80;
-
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // TIME COLUMN
-          
-          SizedBox(
-            width: 70,
-            child: Column(
-              children: [
-                Text(
-                  "${hour.toString().padLeft(2, '0')}:00",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                SizedBox(height: 4),
-                Container(
-                  height: tasks.isEmpty ? 100 : tasks.length * 110,
-                  width: 2,
-                  color: Colors.grey[400],
-                ),
-              ],
+                );
+              },
             ),
-          ),
+            const Text(
+              'Scheduled Tasks',
+              style: TextStyle(fontSize: 20),
+            ),
+            TextButton(
+              onPressed: switchDisplayType,
+              child: Text(showAllHours ? 'Collapse' : 'Expand'),
+            ),
+            ListView.builder(
+              itemCount: visibleHours.length,
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemBuilder: (context, index) {
+                final hour = visibleHours[index];
+                final tasks = widget.tasksByHour[hour] ?? [];
+                double taskHeight = showAllHours ? 100 : 80;
 
-          // TASKS COLUMN
-          Expanded(
-            child: Column(
-              children: tasks.isEmpty && !showAllHours
-                  ? [
-                      // empty hour placeholder
-                      Container(
-                        height: taskHeight,
-                        alignment: Alignment.centerLeft,
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Divider(
-                          color: Colors.grey[300],
-                          thickness: 1,
-                        ),
-                      ),
-                    ]
-                  : tasks.map((task) {
-                      return Container(
-                        height: taskHeight,
-                        margin: EdgeInsets.only(bottom: 10, right: 10, top: 10),
-                        padding: EdgeInsets.all(12),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: task.deletedAt != null
-                              ? Colors.grey[300]
-                              : task.isDone
-                                  ? Color.fromARGB(255, 180, 249, 176)
-                                  : Colors.red[200],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Container(
-                          child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // TIME COLUMN
+                      SizedBox(
+                        width: 70,
+                        child: Column(
                           children: [
                             Text(
-                              task.title,
+                              '${hour.toString().padLeft(2, '0')}:00',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
+                                color: Colors.grey[700],
                               ),
                             ),
-
-                            SizedBox(height: 10),
-
-                            if (task.description != null)
-                              Text(
-                                task.description!,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 14),
-                              ),
+                            const SizedBox(height: 4),
+                            Container(
+                              height: tasks.isEmpty
+                                  ? 100
+                                  : tasks.length * 110,
+                              width: 2,
+                              color: Colors.grey[400],
+                            ),
                           ],
                         ),
+                      ),
+
+                      // TASKS COLUMN
+                      Expanded(
+                        child: Column(
+                          children: tasks.isEmpty && !showAllHours
+                              ? [
+                                  Container(
+                                    height: taskHeight,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                    child: Divider(
+                                      color: Colors.grey[300],
+                                      thickness: 1,
+                                    ),
+                                  ),
+                                ]
+                              : tasks.map((task) {
+                                  return Container(
+                                    height: taskHeight,
+                                    margin: const EdgeInsets.only(
+                                        bottom: 10, right: 10, top: 10),
+                                    padding: const EdgeInsets.all(12),
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: task.deletedAt != null
+                                          ? Colors.grey[300]
+                                          : task.isDone
+                                              ? const Color.fromARGB(
+                                                  255, 180, 249, 176)
+                                              : Colors.red[200],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          task.title,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        if (task.description != null)
+                                          Text(
+                                            task.description!,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-          ),
-        ],
-      ),
-    );
-  },
-)
-            ],
-          ),
-      ]
+          ],
+        ),
+      ],
     );
   }
 }

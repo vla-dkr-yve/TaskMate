@@ -28,6 +28,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
   final NotificationService _notificationService = NotificationService.instance;
 
+  Map<DateTime, double> _productivityScores = {};
+
   List<Task> _chosenDayTasks = [];
 
   String? _title = null;
@@ -40,6 +42,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   bool showDateError = false;
   bool showTitleError = false;
+  bool showTimeError = false;
 
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
@@ -61,6 +64,7 @@ class _CalendarPageState extends State<CalendarPage> {
     _loadDays();
     _GetInitTasks(_selectedDate);
     getSlogan();
+    _loadMonthScores(_selectedDate);
   }
 
   Future<void> _loadDays() async {
@@ -69,6 +73,28 @@ class _CalendarPageState extends State<CalendarPage> {
       _allDaysOfWeek = days;
     });
   }
+
+  Color? _getProductivityColor(DateTime day) {
+    final score = _productivityScores[DateTime(day.year, day.month, day.day)];
+    if (score == null) return null;  // not yet loaded
+    if (score <= 0) return null;      // no tasks that day → no color
+    if (score >= 80) return Colors.green;
+    if (score >= 50) return Colors.orange;
+    return Colors.red;
+  }
+
+  Future<void> _loadMonthScores(DateTime month) async {
+  final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+  final Map<DateTime, double> scores = {};
+
+  for (int d = 1; d <= daysInMonth; d++) {
+    final day = DateTime(month.year, month.month, d);
+    final score = await _databaseService.getDonePercentageForSelectedDay(day);
+    scores[day] = score;
+  }
+
+  setState(() => _productivityScores = scores);
+}
 
   Future<void> _GetInitTasks(DateTime chosenDay) async {
     final tasks = await _databaseService.GetTasksForSelectedDay(chosenDay, chosenDay.weekday);
@@ -252,19 +278,68 @@ class _CalendarPageState extends State<CalendarPage> {
 
           //Calendar
           Container(
-            child: TableCalendar(
-              headerStyle: HeaderStyle(
-                formatButtonVisible: false, titleCentered: true
-              ),
-              availableGestures: AvailableGestures.all,
-              selectedDayPredicate: (day)=>isSameDay(day, _selectedDate),
-              focusedDay: _selectedDate, 
-              firstDay: DateTime.utc(2020,01,01), 
-              lastDay: DateTime.utc(2035,01,01),
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              onDaySelected: _onDaySelected,
-              )
+  child: TableCalendar(
+    headerStyle: HeaderStyle(
+      formatButtonVisible: false, titleCentered: true
+    ),
+    availableGestures: AvailableGestures.all,
+    selectedDayPredicate: (day) => isSameDay(day, _selectedDate),
+    focusedDay: _selectedDate,
+    firstDay: DateTime.utc(2020, 01, 01),
+    lastDay: DateTime.utc(2035, 01, 01),
+    startingDayOfWeek: StartingDayOfWeek.monday,
+    onDaySelected: _onDaySelected,
+    onPageChanged: (focusedDay) {
+    setState(() => _selectedDate = focusedDay);
+    _loadMonthScores(focusedDay);
+    },
+    calendarBuilders: CalendarBuilders(
+      defaultBuilder: (context, day, focusedDay) {
+        final color = _getProductivityColor(day);
+        if (color == null) return null; // use default rendering
+
+        return Container(
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
           ),
+          alignment: Alignment.center,
+          child: Text(
+            '${day.day}',
+            style: const TextStyle(color: Colors.white),
+          ),
+        );
+      },
+      // also override selected/today so they stay consistent
+      selectedBuilder: (context, day, focusedDay) {
+        final color = _getProductivityColor(day) ?? Colors.blue;
+        return Container(
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          alignment: Alignment.center,
+          child: Text('${day.day}', style: const TextStyle(color: Colors.white)),
+        );
+      },
+              todayBuilder: (context, day, focusedDay) {
+                final color = _getProductivityColor(day) ?? Colors.orange;
+                return Container(
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text('${day.day}', style: const TextStyle(color: Colors.white)),
+                );
+              },
+            ),
+          ),
+        ),
           Column(
             children: [
               SizedBox(height: 25),
@@ -514,6 +589,12 @@ class _CalendarPageState extends State<CalendarPage> {
                             dialogSetState(() {
                               showDateError = true;
                             });
+                          }else if(_taskDate!.isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day))){
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('You cannot create a task in the past'),
+                                ),
+                              );
                           }
                           else{
 
@@ -547,6 +628,7 @@ class _CalendarPageState extends State<CalendarPage> {
       }).then((value) {
                 showTitleError = false;
                showDateError = false;
+               showTimeError = false;
                 _startTime = null;
                 _endTime  = null;
                 _taskDate = null;
@@ -604,6 +686,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         ),
                       ),
                       onPressed: () {
+                          _notificationService.removeScheduledNotificationForOneTask(_chosenDayTasks[index]);
                           _chosenDayTasks[index].deletedAt == null ? deleteTaskOccurance(_chosenDayTasks[index].occuranceId) : deleteTaskCompletely(_chosenDayTasks[index].occuranceId);
                           _GetInitTasks(chosenDay);
                           Navigator.of(context).pop();
@@ -618,14 +701,18 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       }
       ).then((value) {
-        setState(() {
-          _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
+        setState(() async{
+          int res = await _databaseService.SaveCompletionState(_chosenDayTasks[index].occuranceId, _selectedDate);
+
+          if (res == 1) {
+           _notificationService.scheduleNotificationForOneTask(_chosenDayTasks[index]); 
+          }
+
         });
       });
   }
   
     Future<VoidCallback?> deleteTaskOccurance(int occuranceId) async{
-
       await _databaseService.DeleteTaskOccurance(occuranceId, _selectedDate);
     }
     
@@ -634,5 +721,4 @@ class _CalendarPageState extends State<CalendarPage> {
       }
 
 }
-
 

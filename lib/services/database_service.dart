@@ -330,7 +330,7 @@ final data = await db.rawQuery('''
     return tasksForHour;
   }
 
-  Future<void> SaveCompletionState(int id, DateTime day) async{
+  Future<int> SaveCompletionState(int id, DateTime day) async{
 
     final db = await database;
     final formattedDate = DateFormat('yyyy-MM-dd').format(day);
@@ -348,9 +348,13 @@ final data = await db.rawQuery('''
 
     if (occurancesForm.isEmpty) {
       CreateNewExecution(id, formattedDate,db);
+      //New created; Remove notification
+      return 1;
     }
     else{
       DeleteExecutionInstance(occurancesForm[0].id, db);
+      //Old Removed; Create notification
+      return 0;
     }
 
   }
@@ -393,12 +397,11 @@ final data = await db.rawQuery('''
   Future<List<double>> getDonePercentage(DateTime chosenDay) async {
   List<double> res = List.filled(7, 0);
 
-  final startOfWeek =
-      chosenDay.subtract(Duration(days: chosenDay.weekday));
+  // weekday: Mon=1, Sun=7. Subtract (weekday-1) to land on Monday.
+  final startOfWeek = chosenDay.subtract(Duration(days: chosenDay.weekday - 1));
 
   for (int i = 0; i < 7; i++) {
     final day = startOfWeek.add(Duration(days: i));
-
     res[i] = await getDonePercentageForSelectedDay(day);
   }
 
@@ -413,12 +416,22 @@ final data = await db.rawQuery('''
 
     final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
 
+    print('Querying for date: $formattedDate, weekday: ${chosenDay.weekday}');
+
+final debug = await db.rawQuery(
+  'SELECT * FROM $_tasksOccuranceTableName LIMIT 10'
+);
+print('Sample occurances: $debug');
+
     final done = await db.rawQuery('''
-   SELECT COUNT(e.$_tasksExecutionTaskOccuranceIdColumnName) AS total
-   FROM $_tasksOccuranceTableName o
-   LEFT JOIN $_tasksExecutionTableName e
+  SELECT COUNT(e.$_tasksExecutionTaskOccuranceIdColumnName) AS total
+  FROM $_tasksOccuranceTableName o
+  LEFT JOIN $_tasksExecutionTableName e
     ON o.$_tasksOccuranceIdColumnName = e.$_tasksExecutionTaskOccuranceIdColumnName
-   WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ? ''', [formattedDate, chosenDay.weekday]);
+    AND e.$_tasksExecutionDateColumnName = ?
+  WHERE o.$_tasksOccuranceTaskDateColumnName = ? 
+    OR o.$_tasksOccuranceDayOfWeekIdColumnName = ?
+''', [formattedDate, formattedDate, chosenDay.weekday]);
 
     int doneForm = done.first["total"] as int;
 
@@ -432,7 +445,7 @@ final data = await db.rawQuery('''
     if (allForm != 0) {
       res = ((doneForm/allForm) * 100).roundToDouble();
     }
-  
+
     print(res);
     return res;
   }

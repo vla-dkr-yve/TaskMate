@@ -21,7 +21,7 @@ Future<void> main() async{
 
   await NotificationService.instance.initNotification();
 
-  await NotificationService.instance.LoadTasksAndScheduleNotifications();
+  await NotificationService.instance.loadTasksAndScheduleNotifications();
 
   runApp(const MyApp());
 }

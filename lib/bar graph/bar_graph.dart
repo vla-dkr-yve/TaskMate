@@ -14,13 +14,13 @@ final List<double> weeklySummary;
   Widget build(BuildContext context) {
 
     BarData myBarData = BarData(
-      sunAmount: weeklySummary[0], 
-      monAmount: weeklySummary[1], 
-      tueAmount: weeklySummary[2], 
-      wenAmount: weeklySummary[3], 
-      thurAmount: weeklySummary[4], 
-      friAmount: weeklySummary[5], 
-      satAmount: weeklySummary[6]
+      monAmount: weeklySummary[0], 
+      tueAmount: weeklySummary[1], 
+      wenAmount: weeklySummary[2], 
+      thurAmount: weeklySummary[3], 
+      friAmount: weeklySummary[4], 
+      satAmount: weeklySummary[5],
+      sunAmount: weeklySummary[6], 
       );
       myBarData.initializeBarData();
 
