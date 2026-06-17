@@ -8,6 +8,7 @@ import 'package:flutter_application_1/pages/calendar_page.dart';
 import 'package:flutter_application_1/pages/settings_page.dart';
 import 'package:flutter_application_1/services/database_service.dart';
 import 'package:flutter_application_1/services/task_dialog_service.dart';
+import 'package:flutter_application_1/widgets/streak_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
@@ -23,13 +24,14 @@ class _HomePageState extends State<HomePage> {
 
   int currentPage = 0;
 
+  // Key lets us force StreakWidget to reload when user returns to home tab
+  Key _streakKey = UniqueKey();
+
   List<double> weekleSummary = [0, 0, 0, 0, 0, 0, 0];
 
   List<Task> todayTasks = [];
-
   List<Task> todayTasksWOTime = [];
   List<Task> todayTasksWTime = [];
-
   Map<int, List<Task>> tasksByHour = {};
 
   @override
@@ -44,7 +46,8 @@ class _HomePageState extends State<HomePage> {
     final pages = [
       HomePageContent(
         databaseService: _databaseService,
-        weekleSummary: weekleSummary,
+        weeklySummary: weekleSummary,
+        streakKey: _streakKey,
         todayTasksWOTime: todayTasksWOTime,
         todayTasksWTime: todayTasksWTime,
         tasksByHour: tasksByHour,
@@ -87,6 +90,8 @@ class _HomePageState extends State<HomePage> {
         if (value == 0) {
           await getPercentage();
           await getTasks();
+          // Refresh streak when returning to home
+          setState(() => _streakKey = UniqueKey());
         }
       },
       items: const [
@@ -109,8 +114,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> getPercentage() async {
     List<double> one =
         await _databaseService.getDonePercentage(DateTime.now());
-
-    print('Weekly summary: $one');
 
     setState(() {
       weekleSummary = one;
@@ -150,13 +153,10 @@ class _HomePageState extends State<HomePage> {
 
     for (var task in todayTasksWTime) {
       if (task.startTime == null) continue;
-
       final hour = int.parse(task.startTime!.split(':')[0]);
-
       if (!tasksByHour.containsKey(hour)) {
         tasksByHour[hour] = [];
       }
-
       tasksByHour[hour]!.add(task);
     }
   }
@@ -166,14 +166,16 @@ class HomePageContent extends StatefulWidget {
   const HomePageContent({
     super.key,
     required this.databaseService,
-    required this.weekleSummary,
+    required this.weeklySummary,
+    required this.streakKey,
     required this.todayTasksWTime,
     required this.todayTasksWOTime,
     required this.tasksByHour,
   });
 
   final DatabaseService databaseService;
-  final List<double> weekleSummary;
+  final List<double> weeklySummary;
+  final Key streakKey;
   final List<Task> todayTasksWOTime;
   final List<Task> todayTasksWTime;
   final Map<int, List<Task>> tasksByHour;
@@ -205,20 +207,25 @@ class _HomePageContentState extends State<HomePageContent> {
 
     return ListView(
       children: [
-        Container(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 60),
-              child: SizedBox(
-                height: 200,
-                child: MyBarGraph(
-                  weeklySummary: widget.weekleSummary,
-                ),
+        // ── Bar chart ──────────────────────────────────────────────────────
+        Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 60),
+            child: SizedBox(
+              height: 200,
+              child: MyBarGraph(
+                weeklySummary: widget.weeklySummary,
               ),
             ),
           ),
         ),
+
+        // ── Streak + productivity score ────────────────────────────────────
+        const SizedBox(height: 16),
+        StreakWidget(key: widget.streakKey),
+
+        // ── Task lists ────────────────────────────────────────────────────
         Column(
           children: [
             const SizedBox(height: 25),

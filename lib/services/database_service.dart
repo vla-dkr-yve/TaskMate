@@ -477,6 +477,9 @@ class DatabaseService {
     double res = 0;
     final formattedDate = DateFormat('yyyy-MM-dd').format(chosenDay);
 
+    var dayOfWeek = chosenDay.weekday + 1;
+    if (dayOfWeek == 8) dayOfWeek = 1;
+
     final done = await db.rawQuery('''
       SELECT COUNT(e.$_tasksExecutionTaskOccuranceIdColumnName) AS total
       FROM $_tasksOccuranceTableName o
@@ -485,7 +488,7 @@ class DatabaseService {
         AND e.$_tasksExecutionDateColumnName = ?
       WHERE o.$_tasksOccuranceTaskDateColumnName = ? 
         OR o.$_tasksOccuranceDayOfWeekIdColumnName = ?
-    ''', [formattedDate, formattedDate, chosenDay.weekday]);
+    ''', [formattedDate, formattedDate, dayOfWeek]);
 
     int doneForm = done.first["total"] as int;
 
@@ -493,7 +496,7 @@ class DatabaseService {
       SELECT COUNT(o.$_tasksOccuranceIdColumnName) AS total
       FROM $_tasksOccuranceTableName o
       WHERE o.$_tasksOccuranceTaskDateColumnName = ? OR o.$_tasksOccuranceDayOfWeekIdColumnName = ?
-    ''', [formattedDate, chosenDay.weekday]);
+    ''', [formattedDate, dayOfWeek]);
 
     int allForm = all.first["total"] as int;
 
@@ -613,5 +616,66 @@ class DatabaseService {
     for (final row in subTasks) {
       await deleteSubTask(row[_subTasksIdColumnName] as int);
     }
+  }
+
+  /// Walks backwards from yesterday counting consecutive days where the user
+  /// completed at least one task. Today is excluded so the streak doesn't
+  /// reset mid-day if tasks aren't done yet.
+  ///
+  /// Returns 0 if yesterday had no completions.
+  Future<int> getCurrentStreak() async {
+    int streak = 0;
+    DateTime day = DateTime.now().subtract(const Duration(days: 1));
+
+    for (int i = 0; i < 365; i++) {
+      final pct = await getDonePercentageForSelectedDay(day);
+      if (pct > 0) {
+        streak++;
+        day = day.subtract(const Duration(days: 1));
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  /// Average completion percentage over the last [days] days that had at least
+  /// one task scheduled. Days with no tasks at all are skipped so they don't
+  /// drag the score down unfairly.
+  ///
+  /// Returns 0.0 if no task data exists in the window.
+  Future<double> getProductivityScore({int days = 30}) async {
+    double total = 0;
+    int counted = 0;
+
+    for (int i = 1; i <= days; i++) {
+      final day = DateTime.now().subtract(Duration(days: i));
+      final formattedDate = DateFormat('yyyy-MM-dd').format(day);
+      final db = await database;
+
+      // Check if there were any tasks that day before including it
+      final taskCount = await db.rawQuery('''
+        SELECT COUNT(*) AS cnt
+        FROM $_tasksOccuranceTableName o
+        LEFT JOIN $_tasksTableName t
+          ON o.$_tasksOccuranceTaskIdColumnName = t.$_tasksIdColumnName
+        WHERE (o.$_tasksOccuranceTaskDateColumnName = ?
+            OR o.$_tasksOccuranceDayOfWeekIdColumnName = ?)
+          AND (o.$_tasksOccuranceDeletedAtColumnName >= ?
+            OR o.$_tasksOccuranceDeletedAtColumnName IS NULL)
+          AND t.$_tasksCreatedAtDateColumnName <= ?
+      ''', [formattedDate, day.weekday, formattedDate, formattedDate]);
+
+      final cnt = taskCount.first["cnt"] as int;
+      if (cnt == 0) continue;
+
+      final pct = await getDonePercentageForSelectedDay(day);
+      total += pct;
+      counted++;
+    }
+
+    if (counted == 0) return 0.0;
+    return (total / counted).roundToDouble();
   }
 }
