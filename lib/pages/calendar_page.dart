@@ -371,6 +371,7 @@ class _CalendarPageState extends State<CalendarPage> {
                             TaskDialog.show(
                               context: context,
                               task: _chosenDayTasks[index],
+                              selectedDate: _selectedDate,
                               onChanged: (isChanged) async {
                                 if (isChanged) {
                                   await _databaseService.SaveCompletionState(
@@ -589,7 +590,7 @@ class _CalendarPageState extends State<CalendarPage> {
                             dialogSetState(() {
                               showDateError = true;
                             });
-                          }else if(_taskDate!.isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day))){
+                          }else if(_taskDate != null && (_taskDate!.isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day)))){
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('You cannot create a task in the past'),
