@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/bar%20graph/bar_data.dart';
+import 'package:flutter_application_1/theme/app_theme.dart';
 
 class MyBarGraph extends StatelessWidget {
 final List<double> weeklySummary;
@@ -61,11 +62,13 @@ final List<double> weeklySummary;
           ).toList(),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor:(group) => Colors.white,
+              getTooltipColor:(group) => AppTheme.surface(context),
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 return BarTooltipItem(
                   '${rod.toY}%',
-                  const TextStyle(),
+                  TextStyle(
+                    color: AppTheme.text(context),
+                  ),
                 );
               },
             ),

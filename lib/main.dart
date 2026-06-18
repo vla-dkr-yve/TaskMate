@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/notification_service.dart';
+import 'package:flutter_application_1/theme/app_theme.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -9,7 +10,7 @@ import 'pages/onboarding_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 
-// ── Theme state ───────────────────────────────────────────────────────────────
+// Theme state
 
 class ThemeNotifier extends ChangeNotifier {
   static const String _key = 'theme_mode';
@@ -34,21 +35,15 @@ class ThemeNotifier extends ChangeNotifier {
   }
 }
 
-// Singleton so SettingsPage can access it without InheritedWidget boilerplate
 late ThemeNotifier themeNotifier;
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await FlutterLocalization.instance.ensureInitialized();
 
   tz.initializeTimeZones();
   tz.setLocalLocation(
-    tz.getLocation(
-      (await FlutterTimezone.getLocalTimezone()).identifier,
-    ),
+    tz.getLocation((await FlutterTimezone.getLocalTimezone()).identifier),
   );
 
   await NotificationService.instance.initNotification();
@@ -97,57 +92,8 @@ class _MyAppState extends State<MyApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       themeMode: themeNotifier.mode,
-
-      // ── Light theme ───────────────────────────────────────────────────
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: Colors.grey[300],
-        cardColor: Colors.white,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.grey,
-          brightness: Brightness.light,
-        ).copyWith(
-          surface: Colors.white,
-          onSurface: Colors.black87,
-        ),
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.grey[300],
-          foregroundColor: Colors.black,
-          elevation: 0,
-        ),
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.black87,
-          unselectedItemColor: Colors.grey[500],
-        ),
-        useMaterial3: false,
-      ),
-
-      // ── Dark theme ────────────────────────────────────────────────────
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF1C1C1E),
-        cardColor: const Color(0xFF2C2C2E),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.grey,
-          brightness: Brightness.dark,
-        ).copyWith(
-          surface: const Color(0xFF2C2C2E),
-          onSurface: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1C1C1E),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF2C2C2E),
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.grey,
-        ),
-        useMaterial3: false,
-      ),
-
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       home: widget.showOnboarding ? const OnboardingPage() : const HomePage(),
     );
   }

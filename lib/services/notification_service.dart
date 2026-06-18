@@ -24,7 +24,7 @@ class NotificationService {
 
   bool get isInitialized => _isInitialized;
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // Initiation
 
   Future<void> initNotification() async {
     if (_isInitialized) return;
@@ -58,7 +58,7 @@ class NotificationService {
     _isInitialized = true;
   }
 
-  // ── Notification details ──────────────────────────────────────────────────
+  // Notification platform specific details
 
   NotificationDetails notificationDetails() {
     return const NotificationDetails(
@@ -74,22 +74,7 @@ class NotificationService {
     );
   }
 
-  // ── Immediate (show-now) notification ────────────────────────────────────
-
-  Future<void> showNotification({
-    int id = 0,
-    String? title,
-    String? body,
-  }) async {
-    return notificationsPlugin.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: notificationDetails(),
-    );
-  }
-
-  // ── Read user settings ────────────────────────────────────────────────────
+  // Read user settings from SharedRefferences
 
   Future<String> _getNotificationMode() async {
     final prefs = await SharedPreferences.getInstance();
@@ -101,7 +86,7 @@ class NotificationService {
     return prefs.getInt(NotificationSettings.keyMinutesBefore) ?? 15;
   }
 
-  // ── Encode a collision-free notification ID ───────────────────────────────
+  // ID algorithm
   //
   // Notification IDs must be unique across all scheduled notifications.
   // We pack: dayOffset (0 = today, 1 = tomorrow, …) and a per-day key
@@ -114,7 +99,7 @@ class NotificationService {
 
   int _notifId(int dayOffset, int perDayKey) => dayOffset * 10000 + perDayKey;
 
-  // ── Load & schedule notifications for the next _kScheduleDays days ────────
+  // Load & schedule notifications for the next _kScheduleDays days
 
   Future<void> loadTasksAndScheduleNotifications() async {
     await notificationsPlugin.cancelAll();
@@ -162,7 +147,7 @@ class NotificationService {
     }
   }
 
-  // ── Per-hour mode ─────────────────────────────────────────────────────────
+  // Per-hour mode
 
   Future<void> _schedulePerHour(List<Task> tasks, DateTime day, int dayOffset) async {
     final Map<int, List<Task>> tasksByHour = {};
@@ -206,7 +191,7 @@ class NotificationService {
     );
   }
 
-  // ── Per-task mode ─────────────────────────────────────────────────────────
+  // Per-task mode
 
   Future<void> _schedulePerTask(
       List<Task> tasks, int minutesBefore, DateTime day, int dayOffset) async {
@@ -251,7 +236,7 @@ class NotificationService {
     );
   }
 
-  // ── Reschedule a single task (called after add / edit / delete) ───────────
+  // Reschedule a single task (called after add / edit / delete)
 
   Future<void> scheduleNotificationForOneTask(Task task) async {
     final mode = await _getNotificationMode();
@@ -295,7 +280,7 @@ class NotificationService {
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // Helpers
 
   String _createMessageText(List<Task> tasks) {
     if (tasks.length == 1) {

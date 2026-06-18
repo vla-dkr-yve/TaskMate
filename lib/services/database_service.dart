@@ -172,8 +172,6 @@ class DatabaseService {
     return database;
   }
 
-  // ─── Existing task methods (unchanged) ───────────────────────────────────────
-
   Future<int> createTask(
     String title, String? description,
     TimeOfDay? startTime, TimeOfDay? endTime, DateTime? TaskDate, List<int>? DayOfWeekIds) async {
@@ -507,10 +505,10 @@ class DatabaseService {
     return res;
   }
 
-  // ─── Sub-task methods ─────────────────────────────────────────────────────────
+  // Sub-task methods
 
-  /// Looks up the parent taskId for a given occurance.
-  /// Needed by the dialog which only receives occuranceId.
+  // Looks up the parent taskId for a given occurance.
+  // Needed by the dialog which only receives occuranceId.
   Future<int> getTaskIdFromOccuranceId(int occuranceId) async {
     final db = await database;
     final result = await db.rawQuery('''
@@ -521,8 +519,8 @@ class DatabaseService {
     return result.first[_tasksOccuranceTaskIdColumnName] as int;
   }
 
-  /// Returns all sub-tasks for a task, with isDone resolved for the given
-  /// occurance + date (so recurring tasks track sub-task completion per day).
+  // Returns all sub-tasks for a task, with isDone resolved for the given
+  // occurance + date (so recurring tasks track sub-task completion per day).
   Future<List<SubTask>> getSubTasksForOccurance(int occuranceId, DateTime date) async {
     final db = await database;
     final taskId = await getTaskIdFromOccuranceId(occuranceId);
@@ -551,8 +549,8 @@ class DatabaseService {
     )).toList();
   }
 
-  /// Toggles a sub-task's completion for a specific occurance + date.
-  /// Returns 1 if now done, 0 if now undone (mirrors SaveCompletionState).
+  // Toggles a sub-task's completion for a specific occurance + date.
+  // Returns 1 if now done, 0 if now undone (mirrors SaveCompletionState).
   Future<int> toggleSubTaskExecution(int subTaskId, int occuranceId, DateTime date) async {
     final db = await database;
     final formattedDate = DateFormat('yyyy-MM-dd').format(date);
@@ -581,7 +579,7 @@ class DatabaseService {
     }
   }
 
-  /// Adds a new sub-task definition to a task.
+  // Adds a new sub-task definition to a task.
   Future<int> createSubTask(int taskId, String title) async {
     final db = await database;
     return await db.rawInsert('''
@@ -590,7 +588,7 @@ class DatabaseService {
     ''', [taskId, title]);
   }
 
-  /// Deletes a sub-task definition and all its execution records.
+  // Deletes a sub-task definition and all its execution records.
   Future<void> deleteSubTask(int subTaskId) async {
     final db = await database;
     await db.rawDelete('''
@@ -603,7 +601,7 @@ class DatabaseService {
     ''', [subTaskId]);
   }
 
-  /// Cleans up all sub-tasks when a parent task is fully deleted.
+  // Cleans up all sub-tasks when a parent task is fully deleted.
   Future<void> deleteSubTasksByTaskId(int taskId) async {
     final db = await database;
 
@@ -618,11 +616,10 @@ class DatabaseService {
     }
   }
 
-  /// Walks backwards from yesterday counting consecutive days where the user
-  /// completed at least one task. Today is excluded so the streak doesn't
-  /// reset mid-day if tasks aren't done yet.
-  ///
-  /// Returns 0 if yesterday had no completions.
+  // Walks backwards from yesterday counting consecutive days where the user
+  // completed at least one task. Today is excluded so the streak doesn't
+  // reset mid-day if tasks aren't done yet.
+  // Returns 0 if yesterday had no completions.
   Future<int> getCurrentStreak() async {
     int streak = 0;
     DateTime day = DateTime.now().subtract(const Duration(days: 1));
@@ -640,11 +637,10 @@ class DatabaseService {
     return streak;
   }
 
-  /// Average completion percentage over the last [days] days that had at least
-  /// one task scheduled. Days with no tasks at all are skipped so they don't
-  /// drag the score down unfairly.
-  ///
-  /// Returns 0.0 if no task data exists in the window.
+  // Average completion percentage over the last [days] days that had at least
+  // one task scheduled. Days with no tasks at all are skipped so they don't
+  // drag the score down unfairly.
+  // Returns 0.0 if no task data exists in the window.
   Future<double> getProductivityScore({int days = 30}) async {
     double total = 0;
     int counted = 0;

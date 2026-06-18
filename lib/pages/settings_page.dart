@@ -144,7 +144,7 @@ class _SettingsPageState extends State<SettingsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ── Appearance ────────────────────────────────────────────────
+          // Appearance
           _buildSectionLabel('APPEARANCE'),
           _buildCard(
             child: Row(
@@ -178,7 +178,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 24),
 
-          // ── Notification mode ─────────────────────────────────────────
+          // Notification mode
           _buildSectionLabel('NOTIFICATION MODE'),
           _buildCard(
             child: DropdownButtonHideUnderline(
@@ -207,7 +207,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
 
-          // ── Per-task timing ────────────────────────────────────────────
+          // Per-task timing
           if (_notificationMode == 'per_task') ...[
             const SizedBox(height: 24),
             _buildSectionLabel('NOTIFY ME BEFORE THE TASK'),
@@ -276,7 +276,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 32),
 
-          // ── Save button ────────────────────────────────────────────────
+          // Save button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

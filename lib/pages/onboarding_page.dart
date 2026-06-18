@@ -164,7 +164,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 }
 
-// ── Single onboarding screen ───────────────────────────────────────────────────
 
 class _OnboardingScreen extends StatelessWidget {
   final _OnboardingData data;
@@ -216,7 +215,7 @@ class _OnboardingScreen extends StatelessWidget {
   }
 }
 
-// ── Data class ────────────────────────────────────────────────────────────────
+// Data class
 
 class _OnboardingData {
   final IconData icon;

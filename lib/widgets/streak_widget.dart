@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/theme/app_theme.dart';
 import '../services/database_service.dart';
 
-/// Displays current streak (days) and 30-day productivity score.
-/// Fully self-contained — fetches its own data on mount.
-/// Call StreakWidget(key: UniqueKey()) to force a refresh.
+// Displays current streak (days) and 30-day productivity score.
+// Fully self-contained - fetches its own data on mount.
+// Call StreakWidget(key: UniqueKey()) to force a refresh.
 class StreakWidget extends StatefulWidget {
   const StreakWidget({super.key});
 
@@ -93,15 +94,8 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.surface(context),
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -112,7 +106,8 @@ class _StatCard extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
+                    color: AppTheme.text(context),
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     height: 1.1,
