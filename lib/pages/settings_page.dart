@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_application_1/main.dart';
 import 'package:flutter_application_1/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/notification_settings.dart';
@@ -12,15 +13,11 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  
-  // Keys used across the app to read settings
+
   static const String keyNotificationMode = NotificationSettings.keyNotificationMode;
   static const String keyMinutesBefore = NotificationSettings.keyMinutesBefore;
 
-  // 'per_hour' = current behaviour, 'per_task' = individual notifications
   String _notificationMode = 'per_hour';
-
-  // Only relevant when mode == 'per_task'
   int _minutesBefore = 15;
   bool _isCustomMinutes = false;
   final TextEditingController _customMinutesController = TextEditingController();
@@ -34,11 +31,16 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadSettings();
+    // Rebuild when theme changes so the toggle switch reflects current state
+    themeNotifier.addListener(_onThemeChanged);
   }
+
+  void _onThemeChanged() => setState(() {});
 
   @override
   void dispose() {
     _customMinutesController.dispose();
+    themeNotifier.removeListener(_onThemeChanged);
     super.dispose();
   }
 
@@ -59,7 +61,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveSettings() async {
-    // Validate custom input
     if (_notificationMode == 'per_task' && _isCustomMinutes) {
       final parsed = int.tryParse(_customMinutesController.text.trim());
       if (parsed == null || parsed <= 0 || parsed > 1440) {
@@ -107,7 +108,7 @@ class _SettingsPageState extends State<SettingsPage> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Colors.grey[700],
+          color: Colors.grey[600],
           letterSpacing: 0.4,
         ),
       ),
@@ -119,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -135,11 +136,48 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = themeNotifier.isDark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
+          // ── Appearance ────────────────────────────────────────────────
+          _buildSectionLabel('APPEARANCE'),
+          _buildCard(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                      size: 22,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      isDark ? 'Dark mode' : 'Light mode',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+                Switch(
+                  value: isDark,
+                  onChanged: (_) => themeNotifier.toggle(),
+                  activeColor: Colors.grey[200],
+                  activeTrackColor: Colors.grey[700],
+                  inactiveThumbColor: Colors.grey[700],
+                  inactiveTrackColor: Colors.grey[300],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // ── Notification mode ─────────────────────────────────────────
           _buildSectionLabel('NOTIFICATION MODE'),
           _buildCard(
@@ -147,6 +185,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 value: _notificationMode,
+                dropdownColor: Theme.of(context).cardColor,
                 items: const [
                   DropdownMenuItem(
                     value: 'per_hour',
@@ -179,6 +218,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
+                      dropdownColor: Theme.of(context).cardColor,
                       value: _isCustomMinutes
                           ? 'custom'
                           : _minutesBefore.toString(),
@@ -209,8 +249,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       },
                     ),
                   ),
-
-                  // Custom minutes text field
                   if (_isCustomMinutes) ...[
                     const SizedBox(height: 12),
                     TextField(
@@ -244,20 +282,20 @@ class _SettingsPageState extends State<SettingsPage> {
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveSettings,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
+                backgroundColor: isDark ? Colors.grey[200] : Colors.black87,
+                foregroundColor: isDark ? Colors.black87 : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: isDark ? Colors.black54 : Colors.white,
                       ),
                     )
                   : const Text(
